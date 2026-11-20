@@ -379,11 +379,13 @@ final class AppModel {
     func startDaySync() {
         guard daySync == nil else { daySync?.flush(); return }
         let monitor = MacUsageMonitor()
-        let sync = MacDaySync(days: services.days, builder: ComputerDayReportBuilder(store: MacUsage.UserDefaultsKeyValueStore(defaults)), clock: SystemClock())
+        let builder = ComputerDayReportBuilder(store: MacUsage.UserDefaultsKeyValueStore(defaults))
+        let sync = MacDaySync(days: services.days, builder: builder, clock: SystemClock())
         monitor.start()
         monitor.publish(to: sync)
         usage = monitor
         daySync = sync
+        recordMacScore(monitor: monitor, promiseHours: { builder.promiseHours })
         foreground = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.daySync?.flush() }
         }

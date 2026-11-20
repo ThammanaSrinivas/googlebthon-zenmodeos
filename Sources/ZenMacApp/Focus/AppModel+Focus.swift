@@ -2,6 +2,8 @@ import Foundation
 import Albeit
 import ZenAPI
 import ZenFocus
+import ZenLogic
+import MacUsage
 
 extension AppModel {
     /// Wires Focus Mode to the backend and Zeno, and ends a block a crash left behind.
@@ -60,6 +62,20 @@ extension AppModel {
                 if !focus.isFocusing, f.endsAt > Date().addingTimeInterval(90) {
                     startFocus(until: f.endsAt, source: .voice)
                 }
+            }
+        }
+    }
+
+    /// This Mac's own Zen Score (never the account's combined one, so no iPhone number reaches the
+    /// team) goes on the daily record every minute it changes: the team's good-day rate reads it.
+    func recordMacScore(monitor: MacUsageMonitor, promiseHours: @escaping @MainActor () -> Int) {
+        Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                let day = monitor.today
+                let score = ZenScoreRule.score(minutes: day.countedMinutes, pullBacks: day.pullBacks, promiseMinutes: promiseHours() * 60)
+                await focus.recordZenScore(score.tenths)
+                try? await Task.sleep(for: .seconds(60))
             }
         }
     }

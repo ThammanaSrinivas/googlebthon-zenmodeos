@@ -194,6 +194,12 @@ final class FocusModel {
         return n
     }
 
+    /// Today's Zen Score on the daily record, written only when it changes.
+    func recordZenScore(_ tenths: Int) async {
+        let e = engine
+        await e.setZenScore(tenths, day: e.dayKey(Date()))
+    }
+
     func today() async -> DailyFocus {
         let e = engine
         return await e.daily(on: e.dayKey(Date()))

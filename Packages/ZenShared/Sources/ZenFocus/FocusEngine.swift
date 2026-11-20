@@ -113,6 +113,19 @@ public actor FocusEngine {
         await write { try await $0.saveDaily(daily, day: day) }
     }
 
+    /// Sets the day's Zen Score (tenths, 25…100) and writes the day, only when it changed.
+    public func setZenScore(_ tenths: Int, day: String) async {
+        guard (25...100).contains(tenths) else { return }
+        var ledger = load([String: DailyFocus].self, Self.ledgerKey) ?? [:]
+        var d = ledger[day] ?? DailyFocus()
+        guard d.zenScoreTenths != tenths else { return }
+        d.zenScoreTenths = tenths
+        ledger[day] = d.clamped
+        save(ledger, Self.ledgerKey)
+        let daily = d.clamped
+        await write { try await $0.saveDaily(daily, day: day) }
+    }
+
     /// Writes waiting from a signed-out stretch go up once someone signs in.
     public func flushOutbox() async {
         guard let sync = sync() else { return }

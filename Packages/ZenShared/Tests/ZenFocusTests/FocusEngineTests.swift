@@ -175,6 +175,22 @@ struct FocusEngineTests {
         #expect(sync.daily[first.day] == DailyFocus(focusMin: 35, blocksStarted: 2, blocksKept: 1, afterHoursMin: 12))
     }
 
+    @Test("The day's Zen Score is written once per change and kept with the focus numbers")
+    func zenScore() async throws {
+        let clock = Clock(t0)
+        let sync = RecordingSync()
+        let e = engine([], sync: sync, clock: clock)
+        let day = await e.dayKey(t0)
+        await e.setZenScore(72, day: day)
+        await e.setZenScore(72, day: day)
+        await e.setZenScore(10, day: day)
+        #expect(sync.daily[day]?.zenScoreTenths == 72)
+        _ = await e.start(until: t0.addingTimeInterval(25 * 60), source: .manual)
+        clock.advance(minutes: 25)
+        _ = await e.end()
+        #expect(sync.daily[day] == DailyFocus(focusMin: 25, blocksStarted: 1, blocksKept: 1, zenScoreTenths: 72))
+    }
+
     @Test("Starting twice returns the running block")
     func startTwice() async {
         let clock = Clock(t0)
