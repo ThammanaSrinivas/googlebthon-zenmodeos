@@ -155,10 +155,14 @@ final class IntegrationsModel {
     private static let optOutKey = "zen.integrations.optout.v1"
     private static let requestKey = "zen.integrations.requests.v1"
 
-    init() {
-        connected = Set(UserDefaults.standard.stringArray(forKey: Self.key) ?? [])
-        optedOut = Set(UserDefaults.standard.stringArray(forKey: Self.optOutKey) ?? [])
-        requested = UserDefaults.standard.stringArray(forKey: Self.requestKey) ?? []
+    /// Where the switches are kept; tests pass their own.
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        connected = Set(defaults.stringArray(forKey: Self.key) ?? [])
+        optedOut = Set(defaults.stringArray(forKey: Self.optOutKey) ?? [])
+        requested = defaults.stringArray(forKey: Self.requestKey) ?? []
     }
 
     func isOn(_ i: Integration, workspace: Workspace?) -> Bool {
@@ -200,12 +204,12 @@ final class IntegrationsModel {
         guard !clean.isEmpty else { return false }
         requested.removeAll { $0.caseInsensitiveCompare(clean) == .orderedSame }
         requested.insert(clean, at: 0)
-        UserDefaults.standard.set(requested, forKey: Self.requestKey)
+        defaults.set(requested, forKey: Self.requestKey)
         return true
     }
 
     private func save() {
-        UserDefaults.standard.set(Array(connected), forKey: Self.key)
-        UserDefaults.standard.set(Array(optedOut), forKey: Self.optOutKey)
+        defaults.set(Array(connected), forKey: Self.key)
+        defaults.set(Array(optedOut), forKey: Self.optOutKey)
     }
 }

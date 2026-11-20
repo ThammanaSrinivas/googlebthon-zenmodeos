@@ -272,10 +272,21 @@ final class AppModel {
     // TODO(buildathon): ZenCorePrivate's weekly review callable (Gemini Pro) once the private package lands.
     private let reviews = ResilientReviews(service: FakeReviews())
 
+    /// Where everything this Mac keeps is saved: settings, tools, gold, the day sync's progress and
+    /// Zeno's intents. `.standard` in the app; tests pass a scratch suite so they never touch it.
+    let defaults: UserDefaults
     /// Zeno's settings, saved on this Mac.
-    let preferences = ZenPreferences()
+    let preferences: ZenPreferences
     /// The tools the person (or their workspace) connected.
-    let integrations = IntegrationsModel()
+    let integrations: IntegrationsModel
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        preferences = ZenPreferences(defaults: defaults)
+        integrations = IntegrationsModel(defaults: defaults)
+        goldLedger = GoldLedger(defaults: defaults)
+        voiceLedger = OnDeviceLedger(store: ZenVoice.UserDefaultsKeyValueStore(defaults))
+    }
 
     func startWeekAndCalendar() {
         // Zeno keeps quiet when switched off, and inside busy events if the person asked for that.
@@ -350,7 +361,7 @@ final class AppModel {
     func startDaySync() {
         guard daySync == nil else { daySync?.flush(); return }
         let monitor = MacUsageMonitor()
-        let sync = MacDaySync(days: services.days, builder: ComputerDayReportBuilder(store: MacUsage.UserDefaultsKeyValueStore()), clock: SystemClock())
+        let sync = MacDaySync(days: services.days, builder: ComputerDayReportBuilder(store: MacUsage.UserDefaultsKeyValueStore(defaults)), clock: SystemClock())
         monitor.start()
         monitor.publish(to: sync)
         usage = monitor
@@ -378,7 +389,7 @@ final class AppModel {
 
     // MARK: Zen Gold
 
-    let goldLedger = GoldLedger()
+    let goldLedger: GoldLedger
     /// Gold pay is open on a won week, and for the whole week after one.
     var goldGate: GoldGate {
         let week = (snapshot ?? FakeSnapshot.value).week
@@ -396,7 +407,7 @@ final class AppModel {
     // MARK: Zeno's voice
 
     /// Intents and focus sessions Zeno sets in conversation, kept on this Mac for the app's life.
-    let voiceLedger = OnDeviceLedger(store: ZenVoice.UserDefaultsKeyValueStore())
+    let voiceLedger: OnDeviceLedger
     /// Zeno's voice: Gemini Live with the mic on the real backend; the five-moment demo on fakes,
     /// labelled Demo wherever it shows.
     private(set) var voice: VoiceModel?

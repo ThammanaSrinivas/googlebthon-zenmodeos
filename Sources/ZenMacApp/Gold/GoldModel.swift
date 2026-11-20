@@ -119,9 +119,12 @@ final class GoldLedger {
     /// True while the ledger holds the demo weeks (no real order recorded yet).
     private(set) var isDemo: Bool
     private static let key = "zen.gold.ledger.v1"
+    /// Where the orders are kept; tests pass their own.
+    private let defaults: UserDefaults
 
-    init() {
-        if let data = UserDefaults.standard.data(forKey: Self.key),
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        if let data = defaults.data(forKey: Self.key),
            let saved = try? JSONDecoder().decode([GoldOrder].self, from: data), !saved.isEmpty {
             orders = saved
             isDemo = false
@@ -138,7 +141,7 @@ final class GoldLedger {
         if isDemo { orders = []; isDemo = false }
         orders.removeAll { $0.week == week }
         orders.insert(GoldOrder(id: UUID().uuidString, week: week, units: units, pricePaise: pricePaise), at: 0)
-        if let data = try? JSONEncoder().encode(orders) { UserDefaults.standard.set(data, forKey: Self.key) }
+        if let data = try? JSONEncoder().encode(orders) { defaults.set(data, forKey: Self.key) }
     }
 
     /// Units only: a demo ledger never carries prices.

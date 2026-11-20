@@ -3,8 +3,7 @@ import Testing
 import ZenAPI
 @testable import ZenMacApp
 
-// IntegrationsModel itself isn't tested here: it reads and writes UserDefaults.standard directly,
-// so a test would overwrite the real choices on the Mac running it. It needs an injectable store.
+// IntegrationsModel's saving is tested in StoresAndPaletteTests, against a scratch store.
 
 @Suite("Integrations: the catalog")
 struct IntegrationCatalogTests {

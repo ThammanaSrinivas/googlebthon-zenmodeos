@@ -156,11 +156,15 @@ struct CommandPalette: View {
 
     // MARK: What there is to find
 
-    private var results: [Item] {
-        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
-        return everything.filter { item in
+    private var results: [Item] { Self.filter(everything, query: query, tag: tag) }
+
+    /// What the palette shows: items under the tag (all of them for All) whose title or detail holds
+    /// the query, case-insensitively, in the order given. An empty query keeps everything under the tag.
+    static func filter(_ items: [Item], query: String, tag: Tag) -> [Item] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return items.filter { item in
             (tag == .all || item.tag == tag)
-                && (q.isEmpty || item.title.lowercased().contains(q) || item.detail.lowercased().contains(q))
+                && (q.isEmpty || item.title.localizedCaseInsensitiveContains(q) || item.detail.localizedCaseInsensitiveContains(q))
         }
     }
 
