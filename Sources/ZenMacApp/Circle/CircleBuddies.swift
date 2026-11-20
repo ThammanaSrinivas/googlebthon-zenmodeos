@@ -24,6 +24,9 @@ struct Buddy: Identifiable, Equatable {
 
     var goodDays: Int { week.compactMap { $0 }.filter { $0 > ZenScore.goodDayThresholdTenths }.count }
 
+    /// The week in words: won as soon as the 4th good day lands, never "5 of 4".
+    var weekLine: String { goodDays >= 4 ? "Week won" : "\(goodDays) of 4 good days" }
+
     /// Zeno's face for this seat: proud on a long streak, happy on a great day, sleepy when the day
     /// hasn't started counting. Never sad: a low day is information, not a punishment.
     var feeling: ZenoFeeling {
@@ -88,6 +91,10 @@ struct BuddiesTab: View {
     @State private var reactionsLeft = Reaction.perDay
     @State private var sent: [String: Reaction] = [:]
     @State private var toast: String?
+    @State private var width: CGFloat = 1000
+
+    /// Five seats sit in one row when there's room, else three to a row.
+    private var columns: Int { width >= 840 ? 5 : 3 }
 
     private var ranked: [Buddy] {
         BuddyDemo.circle.sorted { ($0.score(period) ?? -1) > ($1.score(period) ?? -1) }
@@ -96,7 +103,8 @@ struct BuddiesTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: ZenSpace.s6) {
             header
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 196, maximum: 260), spacing: ZenSpace.s4, alignment: .top)], alignment: .leading, spacing: ZenSpace.s4) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: ZenSpace.s3, alignment: .top), count: columns),
+                      alignment: .leading, spacing: ZenSpace.s3) {
                 ForEach(Array(ranked.enumerated()), id: \.element.id) { i, buddy in
                     BuddyCard(buddy: buddy, rank: i + 1, period: period, sent: sent[buddy.id], canReact: reactionsLeft > 0) { reaction in
                         react(reaction, to: buddy)
@@ -104,12 +112,14 @@ struct BuddiesTab: View {
                 }
             }
             .animation(ZenMotion.container, value: period)
-            HStack(alignment: .top, spacing: ZenSpace.s4) {
-                feed
-                privacyNote.frame(width: 320)
+            HStack(alignment: .top, spacing: ZenSpace.s5) {
+                feed.frame(maxHeight: .infinity)
+                privacyNote.frame(width: 320).frame(maxHeight: .infinity)
             }
+            .fixedSize(horizontal: false, vertical: true)
             .id("feed")
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
     // MARK: The circle's header
@@ -118,7 +128,7 @@ struct BuddiesTab: View {
         HStack(alignment: .center, spacing: ZenSpace.s6) {
             VStack(alignment: .leading, spacing: ZenSpace.s2) {
                 HStack(spacing: ZenSpace.s2) {
-                    Eyebrow("\(CircleCopy.eyebrow) · \(CircleCopy.brosCode)")
+                    Eyebrow("\(CircleCopy.inviteCode) · \(CircleCopy.brosCode)")
                     DemoTag()
                 }
                 Text(CircleCopy.brosName).zenType(.headline).foregroundStyle(Color.zen.textHeading)
@@ -176,13 +186,11 @@ struct BuddiesTab: View {
                 let on = p == period
                 Button { period = p } label: {
                     Text(p == .today ? CircleCopy.daily : CircleCopy.weekly)
-                        .font(ZenFont.text(12.5, on ? .semibold : .medium))
-                        .foregroundStyle(on ? Color.zen.textHeading : Color.zen.textBody)
                         .padding(.horizontal, ZenSpace.s3).frame(height: 30)
-                        .background { if on { Capsule().fill(Color.zen.surfaceRaised).modifier(ZenLift()) } }
-                        .contentShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SegmentStyle(on: on))
+                .focusEffectDisabled()
+                .accessibilityLabel(p == .today ? "Rank by today" : "Rank by this week")
                 .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
             }
         }
@@ -210,13 +218,18 @@ struct BuddiesTab: View {
 
     private var privacyNote: some View {
         VStack(alignment: .leading, spacing: ZenSpace.s3) {
-            Image(systemName: "lock.fill").font(.system(size: 14)).foregroundStyle(Color.zen.textBrand)
+            HStack(spacing: ZenSpace.s2) {
+                Image(systemName: "lock.fill").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.zen.textBrand)
+                Text(CircleCopy.scoresOnly).font(ZenFont.text(15, .semibold)).foregroundStyle(Color.zen.textHeading)
+            }
             Text(CircleCopy.brosPrivacy).zenType(.body).foregroundStyle(Color.zen.textBody)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(ZenSpace.s6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: ZenRadius.xxxl, style: .continuous).fill(Color.zen.surfaceTint.opacity(0.6)))
+        .overlay(RoundedRectangle(cornerRadius: ZenRadius.xxxl, style: .continuous).strokeBorder(Color.zen.brandFill.opacity(0.25), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Actions
@@ -253,6 +266,7 @@ private struct BuddyCard: View {
     let canReact: Bool
     let react: (Reaction) -> Void
     @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let score = buddy.score(period)
@@ -270,42 +284,67 @@ private struct BuddyCard: View {
                     .padding(10)
             }
             .overlay(alignment: .topTrailing) {
-                if let sent {
-                    Image(systemName: sent.symbol).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
-                        .frame(width: 26, height: 26).background(Circle().fill(sent.hue))
-                        .padding(8)
-                        .transition(.scale.combined(with: .opacity))
+                HStack(spacing: 6) {
+                    if let sent {
+                        Image(systemName: sent.symbol).font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                            .frame(width: 22, height: 22).background(Circle().fill(sent.hue))
+                            .transition(.scale.combined(with: .opacity))
+                            .accessibilityLabel("You sent \(sent.rawValue)")
+                    }
+                    if buddy.received > 0 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "heart.fill").font(.system(size: 9, weight: .bold))
+                            Text("\(buddy.received)").font(ZenFont.number(11))
+                        }
+                        .foregroundStyle(Color(hex: 0xB0213F))
+                        .padding(.horizontal, 7).frame(height: 20)
+                        .background(Capsule().fill(.white.opacity(0.85)))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(buddy.received) reactions today")
+                    }
                 }
+                .padding(10)
             }
 
             VStack(alignment: .leading, spacing: ZenSpace.s2) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(buddy.name).font(ZenFont.brand(18)).foregroundStyle(Color.zen.textHeading)
-                    Spacer()
-                    if buddy.received > 0 {
-                        Label("\(buddy.received)", systemImage: "heart.fill").labelStyle(.titleAndIcon)
-                            .font(ZenFont.number(10.5)).foregroundStyle(Color(hex: 0xE0445F))
+                HStack(alignment: .center, spacing: 6) {
+                    Text(buddy.name).font(ZenFont.brand(20)).foregroundStyle(Color.zen.textHeading).lineLimit(1)
+                        .layoutPriority(1)
+                    Spacer(minLength: 0)
+                    // The weekly streak; it drops "wk" before the name would ever truncate.
+                    ViewThatFits(in: .horizontal) {
+                        streakChip("◆ \(buddy.streak) wk")
+                        streakChip("◆ \(buddy.streak)")
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(buddy.streak)-week streak")
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(score.map { ZenScore(tenths: $0).text } ?? "–").font(ZenFont.number(32))
+                    Text(score.map { ZenScore(tenths: $0).text } ?? "–").font(ZenFont.number(30))
                         .foregroundStyle(score.map { $0 > ZenScore.goodDayThresholdTenths } == true ? Color.zen.textHeading : Color.zen.textCaption)
+                        .fixedSize()
                     Text(period == .today ? "today" : "this week").zenType(.caption).foregroundStyle(Color.zen.textCaption)
+                        .lineLimit(1)
                 }
-                CellRow((0..<7).map { i in
-                    guard i < buddy.week.count, let t = buddy.week[i] else { return .empty }
-                    return t > ZenScore.goodDayThresholdTenths ? .on : .empty
-                }, size: 10)
-                HStack(spacing: ZenSpace.s2) {
-                    Text("◆ \(buddy.streak) wk").font(ZenFont.number(10.5)).foregroundStyle(Color.zen.accentRewardText)
-                        .padding(.horizontal, 7).frame(height: 20)
-                        .background(Capsule().fill(Color.zen.accentRewardTint))
-                    Text("\(buddy.goodDays) of 4").font(ZenFont.number(10.5)).foregroundStyle(Color.zen.textCaption)
+                VStack(alignment: .leading, spacing: 6) {
+                    CellRow((0..<7).map { i in
+                        guard i < buddy.week.count, let t = buddy.week[i] else { return .empty }
+                        return t > ZenScore.goodDayThresholdTenths ? .on : .empty
+                    }, size: 10)
+                    .accessibilityHidden(true)
+                    HStack(spacing: 4) {
+                        if buddy.goodDays >= 4 {
+                            Image(systemName: "checkmark.circle.fill").font(.system(size: 11, weight: .semibold))
+                        }
+                        Text(buddy.weekLine).font(ZenFont.text(12, buddy.goodDays >= 4 ? .semibold : .medium)).lineLimit(1)
+                    }
+                    .foregroundStyle(buddy.goodDays >= 4 ? Color.zen.textBrand : Color.zen.textBody)
                 }
                 Text(buddy.isYou ? CircleCopy.youSeat : (buddy.device == .iPhone ? CircleCopy.iPhoneSeat : "Counted on their \(buddy.device == .mac ? "Mac" : "phone")."))
-                    .font(ZenFont.text(11)).foregroundStyle(Color.zen.textCaption)
-                    .lineLimit(2)
-                    .frame(height: 30, alignment: .topLeading)
+                    .font(ZenFont.text(11.5)).foregroundStyle(Color.zen.textCaption)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 32, alignment: .topLeading)
                 if buddy.isYou {
                     // Your seat has no buttons: what's come your way today instead.
                     HStack(spacing: 6) {
@@ -315,35 +354,107 @@ private struct BuddyCard: View {
                     .frame(height: 30, alignment: .leading)
                     .padding(.top, 2)
                 } else {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         ForEach(Reaction.allCases) { r in
                             Button { react(r) } label: {
                                 Image(systemName: r.symbol).font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(sent == r ? .white : r.hue)
-                                    .frame(width: 30, height: 30)
-                                    .background(Circle().fill(sent == r ? r.hue : r.hue.opacity(0.12)))
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(ReactionStyle(hue: r.hue, chosen: sent == r))
+                            .focusEffectDisabled()
                             .disabled(sent != nil || !canReact)
                             .opacity(sent != nil && sent != r ? 0.35 : 1)
                             .help("\(r.rawValue) \(buddy.name)")
                             .accessibilityLabel("Send \(r.rawValue) to \(buddy.name)")
                         }
                     }
+                    .frame(height: 30, alignment: .leading)
                     .padding(.top, 2)
                 }
             }
-            .padding(ZenSpace.s4)
+            .padding(.horizontal, 14).padding(.vertical, ZenSpace.s4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.zen.surfaceCard)
         .clipShape(RoundedRectangle(cornerRadius: ZenRadius.widget, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: ZenRadius.widget, style: .continuous)
             .strokeBorder(buddy.isYou ? Color.zen.accentReward : Color.zen.borderHairline, lineWidth: buddy.isYou ? 1.5 : 1))
         .modifier(ZenLift())
-        .offset(y: hovering ? -3 : 0)
+        .offset(y: hovering && !reduceMotion ? -3 : 0)
         .onHover { hovering = $0 }
-        .animation(ZenMotion.calm(ZenMotion.t2), value: hovering)
+        .animation(reduceMotion ? nil : ZenMotion.calm(ZenMotion.t2), value: hovering)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(rank). \(buddy.name), Zen Score \(score.map { ZenScore(tenths: $0).text } ?? "not counting yet"), \(buddy.streak)-week streak")
+        .accessibilityLabel("\(rank). \(buddy.name), Zen Score \(score.map { ZenScore(tenths: $0).text } ?? "not counting yet"), \(buddy.streak)-week streak, \(buddy.weekLine)")
+    }
+}
+
+extension BuddyCard {
+    fileprivate func streakChip(_ text: String) -> some View {
+        Text(text).font(ZenFont.number(10.5)).foregroundStyle(Color.zen.accentRewardText)
+            .padding(.horizontal, 6).frame(height: 20)
+            .background(Capsule().fill(Color.zen.accentRewardTint))
+            .fixedSize()
+    }
+}
+
+/// A reaction: a tinted circle that deepens on hover, fills when sent, rings for the keyboard.
+private struct ReactionStyle: ButtonStyle {
+    let hue: Color
+    let chosen: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        ReactionBody(configuration: configuration, hue: hue, chosen: chosen)
+    }
+
+    private struct ReactionBody: View {
+        let configuration: Configuration
+        let hue: Color
+        let chosen: Bool
+        @State private var hovering = false
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.isFocused) private var focused
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(chosen ? .white : hue)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(chosen ? hue : hue.opacity(hovering && enabled ? 0.26 : 0.13)))
+                .overlay { if focused { Circle().strokeBorder(Color.zen.textBrand, lineWidth: 2).padding(-3) } }
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.9 : (hovering && enabled && !reduceMotion ? 1.06 : 1))
+                .contentShape(Circle())
+                .onHover { hovering = $0 }
+                .animation(reduceMotion ? nil : ZenMotion.calm(ZenMotion.t1), value: hovering)
+                .animation(reduceMotion ? nil : ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
+        }
+    }
+}
+
+/// One option in a small segmented pill: raised when on, a wash on hover, a ring for the keyboard.
+struct SegmentStyle: ButtonStyle {
+    let on: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        SegmentBody(configuration: configuration, on: on)
+    }
+
+    private struct SegmentBody: View {
+        let configuration: Configuration
+        let on: Bool
+        @State private var hovering = false
+        @Environment(\.isFocused) private var focused
+
+        var body: some View {
+            configuration.label
+                .font(ZenFont.text(12.5, on ? .semibold : .medium))
+                .foregroundStyle(on || hovering ? Color.zen.textHeading : Color.zen.textBody)
+                .background {
+                    if on { Capsule().fill(Color.zen.surfaceRaised).modifier(ZenLift()) }
+                    else if hovering { Capsule().fill(Color.zen.surfaceRaised.opacity(0.5)) }
+                }
+                .overlay { if focused { Capsule().strokeBorder(Color.zen.textBrand, lineWidth: 2) } }
+                .opacity(configuration.isPressed ? 0.75 : 1)
+                .contentShape(Capsule())
+                .onHover { hovering = $0 }
+        }
     }
 }

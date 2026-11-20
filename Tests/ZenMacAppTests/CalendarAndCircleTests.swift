@@ -143,9 +143,9 @@ struct CalendarDaysTests {
 @Suite("Zen Circle: tabs, words and patterns")
 @MainActor
 struct CircleTests {
-    @Test("Three tabs: You, Zen Bros, the cohort")
+    @Test("Three places, the group first: the cohort, Zen Bros, You")
     func tabs() {
-        #expect(CircleTab.allCases.map(\.rawValue) == ["you", "bros", "cohort"])
+        #expect(CircleTab.allCases.map(\.rawValue) == ["cohort", "bros", "you"])
         #expect(CircleCopy.tabYou == "You" && CircleCopy.tabBros == "Zen Bros")
     }
 

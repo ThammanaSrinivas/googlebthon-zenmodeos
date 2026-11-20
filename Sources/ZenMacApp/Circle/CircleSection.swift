@@ -11,6 +11,15 @@ enum CircleCopy {
     static let subtitleYou = "Your month as a picture, and how to read it."
     static let subtitleBros = "Friends keeping one promise a week. Scores only."
     static let subtitleCohort = "Your campus as one. Group numbers, 5 or more, never a name."
+    static let navPeople = "people"
+    static let navFriends = "friends"
+    static let navDays = "days"
+    static let navCohortDetail = "the group"
+    static let navBrosDetail = "scores only"
+    static let navYouDetail = "your month"
+    static let onLastWeek = "on last week"
+    static let seatsLine = "seats, no names. The amber one is you."
+    static let goodDayLine = "6.0, a good day"
 
     // You
     static let yourMonth = "Your month"
@@ -36,13 +45,15 @@ enum CircleCopy {
     // Zen Bros
     static let brosName = "Zen Bros"
     static let brosCode = "ZENBRO7"
+    static let inviteCode = "Invite code"
+    static let scoresOnly = "Scores only"
     static let invite = "Invite a friend"
     static let inviteCopied = "Invite link copied"
     static let daily = "Today"
     static let weekly = "This week"
     static let ranksReset = "Ranks reset Monday"
     static let reactionsLeft = "reactions left today"
-    static let iPhoneSeat = "Counted on their iPhone. Only the score is shared."
+    static let iPhoneSeat = "Only the score leaves their iPhone."
     static let youSeat = "Only your Zen Score leaves your devices."
     static let feedTitle = "This week in Zen Bros"
     static let brosPrivacy = "Your circle sees one number from you: your Zen Score. Never apps, minutes or when you were on."
@@ -55,7 +66,7 @@ enum CircleCopy {
     static let trendTitle = "Group score, last 7 days"
     static let mixTitle = "How the hostel's months look"
     static let mixCaption = "Each shape is a blend of 5 or more people. Smaller groups stay hidden."
-    static let digestEyebrow = "This week in the circle · Gemini"
+    static let digestEyebrow = "This week · by Gemini"
     static let digestTitle = "Evenings got calmer"
     static let digest = "62% good days, up from 54% last week. Evenings got calmer after Tuesday, and most pull-backs now land between 9 and 11 pm. Thursday is still the group's hard day."
     static let digestCaption = "Written by Gemini from group scores only. It never names anyone."
@@ -64,39 +75,40 @@ enum CircleCopy {
     static let preview = "Preview · demo circle"
 }
 
-/// Zen Circle, as three places instead of one long page:
+/// Zen Circle, as three places instead of one long page, the group first:
+/// - **The cohort**: the campus or team as one. Aggregates for 5 or more, never a name.
+/// - **Zen Bros**: friends, ranked by Zen Score, with streaks and reactions. Scores only.
 /// - **You**: your month as a gallery (the pattern, the same month four ways, the four lives it's
 ///   compared with, the cards it makes). The only place anyone's hours are drawn, and they're yours.
-/// - **Zen Bros**: friends, ranked by Zen Score, with streaks and reactions. Scores only.
-/// - **The cohort**: the campus or team as one. Aggregates for 5 or more, never a name.
 struct CircleSection: View {
     @Environment(AppModel.self) private var model
-    @State private var tab: CircleTab = .you
+    @State private var tab: CircleTab = .cohort
 
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: ZenSpace.s6) {
                 header
+                CircleNav(tab: $tab, places: places)
                 Group {
                     switch tab {
-                    case .you: YouGalleryTab()
-                    case .bros: BuddiesTab()
                     case .cohort: CohortTab()
+                    case .bros: BuddiesTab()
+                    case .you: YouGalleryTab()
                     }
                 }
                 .id(tab)
                 .transition(.opacity.combined(with: .offset(y: 8)))
             }
-            .padding(.horizontal, ZenSpace.s6)
+            .padding(.horizontal, ZenSpace.s8)
             .padding(.vertical, ZenSpace.s6)
-            .frame(maxWidth: 1180, alignment: .leading)
+            .frame(maxWidth: 1240, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollIndicators(.hidden)
         .animation(ZenMotion.container, value: tab)
         #if DEBUG
-        // Debug renders: ZEN_CIRCLE_TAB=you|bros|cohort, ZEN_CIRCLE_SCROLL=lives|cards|feed|mix.
+        // Debug renders: ZEN_CIRCLE_TAB=cohort|bros|you, ZEN_CIRCLE_SCROLL=lives|cards|feed|mix.
         .task {
             let env = ProcessInfo.processInfo.environment
             if let raw = env["ZEN_CIRCLE_TAB"], let t = CircleTab(rawValue: raw) { tab = t }
@@ -110,26 +122,34 @@ struct CircleSection: View {
     }
 
     private var cohortName: String { model.cohort?.preview.name ?? FakeCohorts.demo.name }
+    private var cohortSize: Int { model.cohort?.preview.memberCount ?? FakeCohorts.demo.memberCount }
+
+    /// The three places, each with what's inside it: a count, never a name beside a number.
+    private var places: [CirclePlace] {
+        [CirclePlace(tab: .cohort, title: cohortName, symbol: "building.columns.fill",
+                     count: cohortSize, unit: CircleCopy.navPeople, detail: CircleCopy.navCohortDetail),
+         CirclePlace(tab: .bros, title: CircleCopy.tabBros, symbol: "person.2.fill",
+                     count: BuddyDemo.circle.count, unit: CircleCopy.navFriends, detail: CircleCopy.navBrosDetail),
+         CirclePlace(tab: .you, title: CircleCopy.tabYou, symbol: "sparkles",
+                     count: 30, unit: CircleCopy.navDays, detail: CircleCopy.navYouDetail)]
+    }
 
     private var header: some View {
-        HStack(alignment: .bottom, spacing: ZenSpace.s6) {
-            VStack(alignment: .leading, spacing: ZenSpace.s2) {
-                Eyebrow(CircleCopy.eyebrow, color: Color.zen.textBrand)
-                Text(CircleCopy.title).zenType(.headline).foregroundStyle(Color.zen.textHeading)
-                    .accessibilityAddTraits(.isHeader)
-                Text(subtitle).zenType(.body).foregroundStyle(Color.zen.textCaption)
-                    .contentTransition(.opacity)
-            }
-            Spacer(minLength: ZenSpace.s4)
-            CircleTabSwitch(tab: $tab, cohortName: cohortName)
+        VStack(alignment: .leading, spacing: ZenSpace.s2) {
+            Eyebrow(CircleCopy.eyebrow, color: Color.zen.textBrand)
+            Text(CircleCopy.title).zenType(.headline).foregroundStyle(Color.zen.textHeading)
+                .accessibilityAddTraits(.isHeader)
+            Text(subtitle).zenType(.body).foregroundStyle(Color.zen.textBody)
+                .contentTransition(.opacity)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var subtitle: String {
         switch tab {
-        case .you: CircleCopy.subtitleYou
-        case .bros: CircleCopy.subtitleBros
         case .cohort: CircleCopy.subtitleCohort
+        case .bros: CircleCopy.subtitleBros
+        case .you: CircleCopy.subtitleYou
         }
     }
 
@@ -139,41 +159,136 @@ struct CircleSection: View {
     }
 }
 
+/// The group first, then friends, then you.
 enum CircleTab: String, CaseIterable, Identifiable {
-    case you, bros, cohort
+    case cohort, bros, you
     var id: String { rawValue }
 }
 
-/// You · Zen Bros · the cohort: a quiet segmented pill with a glyph per place.
-private struct CircleTabSwitch: View {
+/// One place in Zen Circle, as the navigation shows it.
+struct CirclePlace: Identifiable {
+    let tab: CircleTab
+    let title: String
+    let symbol: String
+    let count: Int
+    let unit: String
+    let detail: String
+    var id: CircleTab { tab }
+
+    /// What VoiceOver reads: the place, then what's in it.
+    var spoken: String { "\(title), \(count) \(unit), \(detail)" }
+}
+
+/// The three places as big tabs: an icon, the name, and what's inside, with a green bar under the
+/// one that's open. Hard to miss, unlike a small segmented pill. ⌘1 ⌘2 ⌘3 jump between them.
+private struct CircleNav: View {
     @Binding var tab: CircleTab
-    let cohortName: String
+    let places: [CirclePlace]
 
     var body: some View {
-        HStack(spacing: 2) {
-            item(.you, CircleCopy.tabYou, "sparkles")
-            item(.bros, CircleCopy.tabBros, "person.2.fill")
-            item(.cohort, cohortName, "building.columns.fill")
+        HStack(spacing: ZenSpace.s3) {
+            ForEach(Array(places.enumerated()), id: \.element.id) { i, place in
+                Button { tab = place.tab } label: {
+                    CircleNavLabel(place: place, selected: place.tab == tab)
+                }
+                .buttonStyle(CircleNavStyle(selected: place.tab == tab))
+                .focusEffectDisabled()
+                .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
+                .help("\(place.title) (⌘\(i + 1))")
+                .accessibilityLabel(place.spoken)
+                .accessibilityAddTraits(place.tab == tab ? [.isSelected, .isButton] : .isButton)
+            }
         }
-        .padding(4)
-        .background(Capsule().fill(Color.zen.surfaceSunk))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Zen Circle places")
+    }
+}
+
+private struct CircleNavLabel: View {
+    let place: CirclePlace
+    let selected: Bool
+
+    var body: some View {
+        HStack(spacing: ZenSpace.s3) {
+            Image(systemName: place.symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(selected ? Color.zen.textBrand : Color.zen.textBody)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous)
+                    .fill(selected ? Color.zen.surfaceTint : Color.zen.surfaceSunk.opacity(0.7)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(place.title).font(ZenFont.text(15.5, .semibold)).foregroundStyle(Color.zen.textHeading)
+                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(place.count)").font(ZenFont.number(12)).foregroundStyle(Color.zen.textHeading)
+                    Text(place.unit).font(ZenFont.text(12.5)).foregroundStyle(Color.zen.textCaption)
+                    Text("·").font(ZenFont.text(12.5)).foregroundStyle(Color.zen.textCaption)
+                    Text(place.detail).font(ZenFont.text(12.5)).foregroundStyle(Color.zen.textCaption)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, ZenSpace.s4)
+        .frame(height: 72)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// The tab's surface: raised with a green underline when open, a quiet wash on hover, a visible
+/// ring for the keyboard, a small press.
+private struct CircleNavStyle: ButtonStyle {
+    let selected: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        NavBody(configuration: configuration, selected: selected)
     }
 
-    private func item(_ t: CircleTab, _ label: String, _ symbol: String) -> some View {
-        let on = t == tab
-        return Button { tab = t } label: {
-            HStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
-                Text(label).font(ZenFont.text(13.5, on ? .semibold : .medium))
-            }
-            .foregroundStyle(on ? Color.zen.textHeading : Color.zen.textBody)
-            .padding(.horizontal, ZenSpace.s4).frame(height: 34)
-            .background { if on { Capsule().fill(Color.zen.surfaceRaised).modifier(ZenLift()) } }
-            .contentShape(Capsule())
+    private struct NavBody: View {
+        let configuration: Configuration
+        let selected: Bool
+        @State private var hovering = false
+        @Environment(\.isFocused) private var focused
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            let shape = RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous)
+            configuration.label
+                .background {
+                    shape.fill(selected ? Color.zen.surfaceRaised : Color.zen.surfaceCard.opacity(hovering ? 0.95 : 0.55))
+                }
+                .overlay(alignment: .bottom) {
+                    if selected {
+                        Capsule().fill(Color.zen.brandFill).frame(height: 3).padding(.horizontal, ZenSpace.s5)
+                            .transition(.opacity)
+                    }
+                }
+                .clipShape(shape)
+                .overlay {
+                    shape.strokeBorder(selected ? Color.zen.brandFill.opacity(0.55) : Color.zen.borderOutline.opacity(hovering ? 1 : 0.6),
+                                       lineWidth: selected ? 1.5 : 1)
+                }
+                .overlay {
+                    if focused {
+                        RoundedRectangle(cornerRadius: ZenRadius.xl + 3, style: .continuous)
+                            .strokeBorder(Color.zen.textBrand, lineWidth: 2).padding(-3)
+                    }
+                }
+                .modifier(SelectedLift(on: selected))
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+                .opacity(configuration.isPressed ? 0.9 : 1)
+                .contentShape(shape)
+                .onHover { hovering = $0 }
+                .animation(reduceMotion ? nil : ZenMotion.calm(ZenMotion.t1), value: hovering)
+                .animation(reduceMotion ? nil : ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+    }
+}
+
+private struct SelectedLift: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.modifier(ZenLift()) } else { content }
     }
 }
 
@@ -201,7 +316,7 @@ struct CirclePanel<Trailing: View, Content: View>: View {
             content
         }
         .padding(ZenSpace.s6)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassCard(radius: ZenRadius.xxxl)
     }
 }

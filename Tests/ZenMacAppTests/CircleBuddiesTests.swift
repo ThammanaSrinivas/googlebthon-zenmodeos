@@ -91,3 +91,18 @@ struct BuddiesTests {
         #expect(Set(Reaction.allCases.map(\.symbol)).count == 4)
     }
 }
+
+@Suite("Zen Circle · Zen Bros: the week line")
+struct BuddyWeekLineTests {
+    private func buddy(_ week: [Int?]) -> Buddy {
+        Buddy(id: "w", name: "W", isYou: false, weekTenths: 60, todayTenths: nil, streak: 0, week: week, device: .iPhone, received: 0)
+    }
+
+    @Test("Counts good days up to the 4th, then says the week is won (never \"5 of 4\")")
+    func weekLine() {
+        #expect(buddy([]).weekLine == "0 of 4 good days")
+        #expect(buddy([61, 60, nil, 75]).weekLine == "2 of 4 good days")
+        #expect(buddy([61, 62, 63, 64]).weekLine == "Week won")
+        #expect(buddy([61, 62, 63, 64, 65]).weekLine == "Week won")
+    }
+}
