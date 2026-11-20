@@ -6,7 +6,8 @@ import ZenAPI
 /// The iPhone app's root. Signed out: Zeno says hello, with Apple and Google. Signed in: the
 /// combined Zen Score, live, the week, and approving a Mac that wants to sign in as you.
 public struct ZenPhoneRoot: View {
-    @State private var model = PhoneModel(services: ZenPhoneBackend.make())
+    @State private var model = PhoneModel(services: ZenPhoneBackend.make(), activity: ZenPhoneBackend.focusActivity())
+    @Environment(\.scenePhase) private var scenePhase
 
     public init() {}
 
@@ -26,6 +27,7 @@ public struct ZenPhoneRoot: View {
         .animation(ZenMotion.container, value: model.user)
         .onOpenURL { model.handle(url: $0) }
         .onAppear { model.start() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.becameActive() } }
         .sheet(isPresented: Binding(get: { if case .confirm = model.pairing { true } else { false } },
                                     set: { if !$0, case .confirm = model.pairing { model.cancelPairing() } })) {
             if case .confirm(let code) = model.pairing { ApproveSheet(model: model, code: code) }
@@ -93,6 +95,9 @@ private struct SignedInView: View {
                     Spacer()
                     ZenoView(model.snapshot?.score.isGoodDay == true ? .happy : .calm).frame(width: 64)
                 }
+                if let until = model.focusingUntil {
+                    FocusLine(until: until).transition(.opacity)
+                }
                 scoreCard
                 pairCard
                 HStack {
@@ -102,6 +107,7 @@ private struct SignedInView: View {
                 }
             }
             .padding(ZenSpace.s5)
+            .animation(ZenMotion.container, value: model.focusingUntil)
         }
     }
 
@@ -164,6 +170,29 @@ private struct SignedInView: View {
         .padding(ZenSpace.s5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard(radius: ZenRadius.widget)
+    }
+}
+
+/// "Focusing until 12:00 on your Mac": the Mac's focus, followed here and on the Lock Screen.
+private struct FocusLine: View {
+    let until: Date
+
+    var body: some View {
+        HStack(spacing: ZenSpace.s3) {
+            Image(systemName: "laptopcomputer")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.zen.textBrand)
+            Text(PhoneCopy.focusing(until: until))
+                .font(ZenFont.text(14, .semibold))
+                .foregroundStyle(Color.zen.textHeading)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, ZenSpace.s4)
+        .padding(.vertical, ZenSpace.s3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(radius: ZenRadius.lg, tint: Color.zen.surfaceTint)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(PhoneCopy.focusing(until: until))
     }
 }
 

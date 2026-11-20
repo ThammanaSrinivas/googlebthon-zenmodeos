@@ -23,7 +23,7 @@ struct ZenModeOSiPhoneApp: App {
         if ProcessInfo.processInfo.environment["ZEN_USE_MOCK"] == nil, ZenCorePrivate.hasFirebaseConfig {
             let live = ZenCorePrivate.services()
             return PhoneServices(auth: live.auth, scores: live.scores, days: live.days,
-                                 voiceTokens: live.voiceTokens, cards: live.cards, isDemo: false)
+                                 voiceTokens: live.voiceTokens, cards: live.cards, focus: live.focus, isDemo: false)
         }
         #endif
         return .fakes()

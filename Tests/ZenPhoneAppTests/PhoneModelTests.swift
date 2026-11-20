@@ -7,7 +7,7 @@ import ZenMock
 
 /// Waits (up to `timeout`) for `condition`, checking every millisecond.
 @MainActor
-private func eventually(_ timeout: Duration = .seconds(5), _ condition: @MainActor () -> Bool) async -> Bool {
+func eventually(_ timeout: Duration = .seconds(5), _ condition: @MainActor () -> Bool) async -> Bool {
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: timeout)
     while !condition() {
@@ -18,7 +18,7 @@ private func eventually(_ timeout: Duration = .seconds(5), _ condition: @MainAct
 }
 
 /// An auth service that answers at once, or fails the way it's told to.
-private struct ScriptedAuth: AuthService {
+struct ScriptedAuth: AuthService {
     var signedIn: ZenUser?
     var googleError: AuthError?
     var approveError: AuthError?
@@ -62,7 +62,7 @@ private final class RecordingDays: DaySyncService, @unchecked Sendable {
 @MainActor
 private func phone(_ auth: ScriptedAuth = ScriptedAuth(), days: RecordingDays = RecordingDays()) -> PhoneModel {
     PhoneModel(services: PhoneServices(auth: auth, scores: FakeScores(), days: days, voiceTokens: FakeVoiceTokens(),
-                                       cards: FakeZenCards(), isDemo: true))
+                                       cards: FakeZenCards(), focus: FakeFocusSync(), isDemo: true))
 }
 
 @Suite("iPhone: signing in")

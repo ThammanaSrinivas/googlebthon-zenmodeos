@@ -13,27 +13,33 @@ public struct PhoneServices: Sendable {
     public let days: any DaySyncService
     public let voiceTokens: any VoiceTokenService
     public let cards: any ZenCardService
+    /// The Mac's focus. The iPhone only reads `live/focus`; it never writes a focus doc.
+    public let focus: any FocusSyncService
     public let isDemo: Bool
 
     public init(auth: any AuthService, scores: any ScoreService, days: any DaySyncService,
-                voiceTokens: any VoiceTokenService, cards: any ZenCardService, isDemo: Bool) {
+                voiceTokens: any VoiceTokenService, cards: any ZenCardService, focus: any FocusSyncService,
+                isDemo: Bool) {
         self.auth = auth
         self.scores = scores
         self.days = days
         self.voiceTokens = voiceTokens
         self.cards = cards
+        self.focus = focus
         self.isDemo = isDemo
     }
 
-    public static func fakes() -> PhoneServices {
+    public static func fakes(focus: FakeFocusSync = FakeFocusSync()) -> PhoneServices {
         PhoneServices(auth: FakeAuth(), scores: FakeScores(), days: FakeSync.demo(),
-                      voiceTokens: FakeVoiceTokens(), cards: FakeZenCards(), isDemo: true)
+                      voiceTokens: FakeVoiceTokens(), cards: FakeZenCards(), focus: focus, isDemo: true)
     }
 }
 
 @MainActor
 public enum ZenPhoneBackend {
     public static var make: @MainActor () -> PhoneServices = { .fakes() }
+    /// The Live Activity for the Mac's focus; the app target sets the ActivityKit one.
+    public static var focusActivity: @MainActor () -> any FocusActivityControlling = { NoFocusActivity() }
 }
 
 /// What the iPhone measured today, if anything. Screen Time (DeviceActivity) fills this; until it
@@ -60,19 +66,39 @@ final class PhoneModel {
     private(set) var signInError: String?
     private(set) var pairing: Pairing = .idle
     var codeText = "" { didSet { let clean = JoinCode.sanitize(codeText); if clean != codeText { codeText = clean } } }
+    /// The Mac's `live/focus`, as last heard (idle while signed out).
+    private(set) var liveFocus: LiveFocus = .idle
+    /// The Mac's focus end time while it's still ahead: what the app's line and the Island show.
+    private(set) var focusingUntil: Date?
 
     private var nonce = SignInNonce.make()
     private var scoreTask: Task<Void, Never>?
+    private var focusTask: Task<Void, Never>?
+    private var expiryTask: Task<Void, Never>?
     private let measure: any PhoneDayMeasure = NotMeasuredYet()
+    private let activity: any FocusActivityControlling
+    /// The end time of the Live Activity on show, nil when none is.
+    private(set) var activityUntil: Date?
 
-    init(services: PhoneServices) {
+    init(services: PhoneServices, activity: any FocusActivityControlling = NoFocusActivity()) {
         self.services = services
+        self.activity = activity
     }
 
     func start() {
+        // An activity left from before this launch: keep it while its end time is ahead (the Mac's
+        // word arrives in a moment), end it now if that time has passed.
+        activityUntil = activity.adopt()
+        if let shown = activityUntil, shown <= Date() { endActivity() }
         Task {
-            if let person = await services.auth.currentUser() { signedIn(person) }
+            if let person = await services.auth.currentUser() { signedIn(person) } else { endActivity() }
         }
+    }
+
+    /// Back in the foreground: an end time may have passed, or a start may have been refused while
+    /// the app was in the background.
+    func becameActive() {
+        reconcileFocus()
     }
 
     // MARK: Sign-in
@@ -119,6 +145,7 @@ final class PhoneModel {
         user = person
         signInError = nil
         followScore()
+        followFocus()
         Task { await publishToday() }
     }
 
@@ -126,8 +153,11 @@ final class PhoneModel {
         Task {
             try? await services.auth.signOut()
             scoreTask?.cancel()
+            focusTask?.cancel()
             user = nil
             snapshot = nil
+            liveFocus = .idle
+            reconcileFocus()
         }
     }
 
@@ -140,6 +170,55 @@ final class PhoneModel {
             for await next in scores.updates() {
                 withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) { self?.snapshot = next }
             }
+        }
+    }
+
+    // MARK: The Mac's focus
+
+    /// Follows `live/focus` while signed in. Read only: nothing about focus leaves the phone.
+    private func followFocus() {
+        focusTask?.cancel()
+        let focus = services.focus
+        focusTask = Task { [weak self] in
+            for await next in focus.liveFocus() {
+                guard !Task.isCancelled else { return }
+                self?.liveFocus = next
+                self?.reconcileFocus()
+            }
+        }
+    }
+
+    /// Brings the line and the Live Activity in step with `liveFocus`: start when the Mac is
+    /// focusing and the end is ahead, move the end time when it changes, end when the Mac stops or
+    /// the time passes. Never two activities.
+    private func reconcileFocus() {
+        let now = Date()
+        focusingUntil = liveFocus.isFocusing(at: now) ? liveFocus.until : nil
+        switch FocusActivityStep.next(shown: activityUntil, live: liveFocus, now: now) {
+        case .keep: break
+        case .start(let until): activityUntil = activity.start(until: until) ? until : nil
+        case .update(let until): activity.update(until: until); activityUntil = until
+        case .end: endActivity()
+        }
+        scheduleExpiry()
+    }
+
+    private func endActivity() {
+        guard activityUntil != nil else { return }
+        activity.end()
+        activityUntil = nil
+    }
+
+    /// Checks again when the end time comes, so a Mac that never said "done" doesn't leave the
+    /// line or the Island up.
+    private func scheduleExpiry() {
+        expiryTask?.cancel()
+        guard let until = focusingUntil ?? activityUntil else { expiryTask = nil; return }
+        let wait = max(until.timeIntervalSinceNow, 0) + 0.05
+        expiryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled else { return }
+            self?.reconcileFocus()
         }
     }
 
@@ -192,4 +271,8 @@ enum PhoneCopy {
     static let codeChanged = "That code just changed. Use the one on the Mac now."
     static let pairFailed = "Couldn't approve that one. Check the code and try again."
     static let noScore = "No score yet today. Your day counts itself."
+    /// "Focusing until 12:00 on your Mac": the end time in the Mac's 24-hour style, never a countdown.
+    static func focusing(until: Date, timeZone: TimeZone = .current) -> String {
+        "Focusing until \(DayPlanner.text(until, timeZone: timeZone)) on your Mac"
+    }
 }
