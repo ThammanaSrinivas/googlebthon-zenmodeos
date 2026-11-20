@@ -15,6 +15,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Zeno listens when you tap it, so you can say what you picked up the phone for. Audio goes to Google Gemini for the reply and isn&apos;t stored.</string>
 </dict>

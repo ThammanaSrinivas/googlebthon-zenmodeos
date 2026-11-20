@@ -12,7 +12,34 @@
 		AB1000000000000000000421 /* ZenAPI in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000321 /* ZenAPI */; };
 		AB1000000000000000000422 /* ZenMock in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000322 /* ZenMock */; };
 		AB1000000000000000000423 /* ZenPhoneApp in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000323 /* ZenPhoneApp */; };
+		AB1000000000000000000611 /* ZenModeOSiPhoneWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000610 /* ZenModeOSiPhoneWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AB1000000000000000000642 /* Albeit in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000640 /* Albeit */; };
+		AB1000000000000000000643 /* ZenAPI in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000641 /* ZenAPI */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AB1000000000000000000605 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AB1000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AB1000000000000000000600;
+			remoteInfo = ZenModeOSiPhoneWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AB1000000000000000000604 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AB1000000000000000000611 /* ZenModeOSiPhoneWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		AB1000000000000000000005 /* Mac.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Mac.xcconfig; sourceTree = "<group>"; };
@@ -23,6 +50,8 @@
 		AB1000000000000000000031 /* ZenModeOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZenModeOS.entitlements; sourceTree = "<group>"; };
 		AB1000000000000000000032 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB1000000000000000000033 /* ZenModeOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZenModeOS.entitlements; sourceTree = "<group>"; };
+		AB1000000000000000000610 /* ZenModeOSiPhoneWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ZenModeOSiPhoneWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB1000000000000000000612 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +63,16 @@
 		AB1000000000000000000011 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		AB1000000000000000000621 /* Sources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		AB1000000000000000000622 /* iPhoneShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = iPhoneShared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -58,6 +97,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AB1000000000000000000602 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB1000000000000000000642 /* Albeit in Frameworks */,
+				AB1000000000000000000643 /* ZenAPI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -66,6 +114,8 @@
 			children = (
 				AB1000000000000000000007 /* Mac */,
 				AB1000000000000000000008 /* iPhone */,
+				AB1000000000000000000620 /* iPhoneWidgets */,
+				AB1000000000000000000622 /* iPhoneShared */,
 				AB1000000000000000000004 /* Config */,
 				AB1000000000000000000003 /* Products */,
 			);
@@ -76,6 +126,7 @@
 			children = (
 				AB1000000000000000000020 /* ZenMode OS.app */,
 				AB1000000000000000000021 /* ZenModeOS.app */,
+				AB1000000000000000000610 /* ZenModeOSiPhoneWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -107,6 +158,15 @@
 				AB1000000000000000000033 /* ZenModeOS.entitlements */,
 			);
 			path = iPhone;
+			sourceTree = "<group>";
+		};
+		AB1000000000000000000620 /* iPhoneWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				AB1000000000000000000621 /* Sources */,
+				AB1000000000000000000612 /* Info.plist */,
+			);
+			path = iPhoneWidgets;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -142,13 +202,16 @@
 				AB1000000000000000000201 /* Sources */,
 				AB1000000000000000000202 /* Frameworks */,
 				AB1000000000000000000203 /* Resources */,
+				AB1000000000000000000604 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AB1000000000000000000606 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AB1000000000000000000011 /* Sources */,
+				AB1000000000000000000622 /* iPhoneShared */,
 			);
 			name = ZenModeOSiPhone;
 			packageProductDependencies = (
@@ -160,6 +223,31 @@
 			productName = ZenModeOSiPhone;
 			productReference = AB1000000000000000000021 /* ZenModeOS.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AB1000000000000000000600 /* ZenModeOSiPhoneWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB1000000000000000000630 /* Build configuration list for PBXNativeTarget "ZenModeOSiPhoneWidgets" */;
+			buildPhases = (
+				AB1000000000000000000601 /* Sources */,
+				AB1000000000000000000602 /* Frameworks */,
+				AB1000000000000000000603 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AB1000000000000000000621 /* Sources */,
+				AB1000000000000000000622 /* iPhoneShared */,
+			);
+			name = ZenModeOSiPhoneWidgets;
+			packageProductDependencies = (
+				AB1000000000000000000640 /* Albeit */,
+				AB1000000000000000000641 /* ZenAPI */,
+			);
+			productName = ZenModeOSiPhoneWidgets;
+			productReference = AB1000000000000000000610 /* ZenModeOSiPhoneWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -175,6 +263,9 @@
 						CreatedOnToolsVersion = 27.0;
 					};
 					AB1000000000000000000200 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					AB1000000000000000000600 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 				};
@@ -199,6 +290,7 @@
 			targets = (
 				AB1000000000000000000100 /* ZenModeOSMac */,
 				AB1000000000000000000200 /* ZenModeOSiPhone */,
+				AB1000000000000000000600 /* ZenModeOSiPhoneWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -212,6 +304,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AB1000000000000000000203 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB1000000000000000000603 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -235,7 +334,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AB1000000000000000000601 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AB1000000000000000000606 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AB1000000000000000000600 /* ZenModeOSiPhoneWidgets */;
+			targetProxy = AB1000000000000000000605 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AB1000000000000000000501 /* Debug */ = {
@@ -406,6 +520,63 @@
 			};
 			name = Release;
 		};
+		AB1000000000000000000631 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CBH6YW2NR9;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iPhoneWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ZenMode OS";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zenmodeos.buildathon.ios.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AB1000000000000000000632 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CBH6YW2NR9;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iPhoneWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "ZenMode OS";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zenmodeos.buildathon.ios.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -432,6 +603,15 @@
 			buildConfigurations = (
 				AB1000000000000000000521 /* Debug */,
 				AB1000000000000000000522 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB1000000000000000000630 /* Build configuration list for PBXNativeTarget "ZenModeOSiPhoneWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB1000000000000000000631 /* Debug */,
+				AB1000000000000000000632 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -471,6 +651,15 @@
 		AB1000000000000000000323 /* ZenPhoneApp */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ZenPhoneApp;
+		};
+		AB1000000000000000000640 /* Albeit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Albeit;
+		};
+		AB1000000000000000000641 /* ZenAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB1000000000000000000301 /* XCLocalSwiftPackageReference "../Packages/ZenShared" */;
+			productName = ZenAPI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
