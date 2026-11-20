@@ -76,6 +76,10 @@ public final class VoiceModel {
     private var sessionTasks: [Task<Void, Never>] = []
     private var ledgerTask: Task<Void, Never>?
     private var nextLineId = 0
+    /// Bumped by every `start` and `stop`. A cancelled task still drains what its stream had
+    /// buffered, so each session's tasks check it and drop a stopped session's leftover events and
+    /// cues instead of writing them over the next session (or over `.ended`).
+    private var run = 0
 
     /// A live model. `transport` makes the WebSocket for each session; by default it is
     /// `URLSessionLiveTransport` on Apple platforms (and none elsewhere, where `start` fails with
@@ -127,6 +131,8 @@ public final class VoiceModel {
     /// Then the mic streams (live) or the five moments play (demo).
     public func start(pickup: Bool = true) async {
         guard session == nil else { return }
+        run += 1
+        let current = run
         lines = []
         card = nil
         error = nil
@@ -147,37 +153,49 @@ public final class VoiceModel {
                                                  advanceClock: { clock.advance(by: $0) })
             transport = scripted
             sessionTasks.append(Task { [weak self] in
-                for await cue in scripted.cues { self?.apply(cue) }
+                for await cue in scripted.cues {
+                    guard let self, self.run == current else { return }
+                    self.apply(cue)
+                }
             })
         }
 
         let session = ZenoSession(transport: transport, tools: toolbox, tokens: isDemo ? nil : tokens, user: userName)
         self.session = session
         sessionTasks.append(Task { [weak self] in
-            for await event in session.events { self?.apply(event) }
+            for await event in session.events {
+                guard let self, self.run == current else { return }
+                self.apply(event)
+            }
             self?.sessionFinished(session)
         })
 
+        // After each wait, carry on only if this is still the session: `stop()` may have ended it
+        // meanwhile, and then there is no error to show and no mic to open.
         let token: LiveToken
-        do { token = try await tokens.liveToken() } catch { return fail(error) }
-        do { try await session.connect(token: token) } catch { return fail(error) }
+        do { token = try await tokens.liveToken() } catch { return failUnlessStopped(session, error) }
+        guard self.session === session else { return }
+        // The pickup is counted before connecting: the scripted replay starts playing as soon as
+        // the setup is accepted, and its first intent must find the pickup already there.
+        if pickup { await ledger.recordPickup() }
+        do { try await session.connect(token: token) } catch { return failUnlessStopped(session, error) }
+        guard self.session === session else { return }
 
-        if pickup {
-            await ledger.recordPickup()
-            await session.sendText(ZenoAgent.pickupCue)
-        }
-        if let audio, !isDemo { startMic(audio, session: session) }
+        if pickup { await session.sendText(ZenoAgent.pickupCue) }
+        if let audio, !isDemo, self.session === session { startMic(audio, session: session) }
     }
 
-    /// Ends the session, stops the mic and playback.
+    /// Ends the session, stops the mic and playback. The model lets go of the session first, so a
+    /// `start` still connecting sees the stop instead of reporting the closed session as an error.
     public func stop() async {
         guard let session else { return }
+        self.session = nil
+        run += 1
         audio?.stop()
-        await session.close()
         for task in sessionTasks { task.cancel() }
         sessionTasks = []
-        self.session = nil
         state = .ended
+        await session.close()
     }
 
     /// Sends a typed line as the user's turn.
@@ -202,6 +220,10 @@ public final class VoiceModel {
             continuation.finish()
             self.error = .disabled // the mic was refused; typed turns still work
         }
+    }
+
+    private func failUnlessStopped(_ attempt: ZenoSession, _ error: VoiceError) {
+        if session === attempt { fail(error) }
     }
 
     private func fail(_ error: VoiceError) {
@@ -268,10 +290,10 @@ public final class VoiceModel {
         case .pickup(let clock):
             demoClock = clock
         case .line(let line):
+            // Only for voicing: the transcript comes from the session's events, which end every
+            // Zeno line themselves (turn complete, or interrupted). Cues arrive on their own stream,
+            // so ending a line here could cut the line now growing and split it in two.
             onDemoLine?(line)
-            if line.speaker == .zeno, let index = lines.lastIndex(where: { $0.speaker == .zeno && !$0.isFinal }) {
-                lines[index].isFinal = true
-            }
         case .skip(_, let clock):
             demoClock = clock
         case .finished:
