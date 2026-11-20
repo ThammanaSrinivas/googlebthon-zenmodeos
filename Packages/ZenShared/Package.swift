@@ -20,6 +20,7 @@ let package = Package(
         .library(name: "ZenLogic", targets: ["ZenLogic"]),
         .library(name: "ZenMock", targets: ["ZenMock"]),
         .library(name: "MacUsage", targets: ["MacUsage"]),
+        .library(name: "ZenVoice", targets: ["ZenVoice"]),
     ],
     targets: [
         // The one app contract: protocols, value types and the rules every surface shares (the
@@ -33,11 +34,18 @@ let package = Package(
         // The Mac's distracting-minutes tracker and its throttled publisher: a pure core plus a thin
         // AppKit adapter (behind `canImport(AppKit)`).
         .target(name: "MacUsage", dependencies: ["ZenAPI", "ZenLogic"], swiftSettings: swift6),
+        // Zeno Voice: the Gemini Live protocol, Zeno's instruction and tools, the on-device ledger,
+        // the toolbox, the session, the PCM maths, the offline replay and the model the notch binds
+        // to. The URLSession transport and the AVAudioEngine adapter sit behind `canImport`.
+        .target(name: "ZenVoice", dependencies: ["ZenAPI", "ZenLogic"],
+                resources: [.copy("Resources/zeno_voice_tools_v1.json")], swiftSettings: swift6),
 
         .testTarget(name: "ZenAPITests", dependencies: ["ZenAPI", "ZenMock"], swiftSettings: swift6),
         .testTarget(name: "ZenLogicTests", dependencies: ["ZenLogic", "ZenAPI"],
                     resources: [.copy("Vectors")], swiftSettings: swift6),
         .testTarget(name: "ZenMockTests", dependencies: ["ZenMock", "ZenLogic", "ZenAPI"], swiftSettings: swift6),
+        .testTarget(name: "ZenVoiceTests", dependencies: ["ZenVoice", "ZenMock", "ZenLogic", "ZenAPI"],
+                    swiftSettings: swift6),
         .testTarget(name: "MacUsageTests", dependencies: ["MacUsage", "ZenMock", "ZenLogic", "ZenAPI"],
                     swiftSettings: swift6),
     ]

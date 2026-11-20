@@ -61,6 +61,10 @@ Packages/ZenShared/  the shared, UI-free package (macOS, iOS and Linux)
                    demos. FakeSync runs the real combine on every publish.
     MacUsage/      the Mac's distracting-minutes tracker, the report builder and MacDaySync (the
                    throttled publisher); the AppKit adapter sits behind `canImport(AppKit)`.
+    ZenVoice/      Zeno Voice on the Gemini Live API: the wire protocol, Zeno's instruction and
+                   tools, the on-device ledger, the toolbox, the session, the PCM maths, the
+                   offline replay and VoiceModel (what the notch binds to). The URLSession
+                   transport and the AVAudioEngine adapter sit behind `canImport`.
   Tests/           Swift Testing suites, with the shared vectors in ZenLogicTests/Vectors.
 ```
 
@@ -130,6 +134,55 @@ within seconds of any device publishing.
   with a random per-install id and a sequence that only grows, and `MacDaySync` publishes it: when
   it changes, at most every 30 seconds, at once on foreground, sign-in and midnight, with backoff
   while offline.
+
+## Zeno Voice
+
+Say why you picked up the phone, in your own language, and Zeno acts on it: Zeno Voice is a
+real-time voice agent on the **Gemini Live API** (native audio in and out). It understands Tamil,
+Hindi, Tanglish, Hinglish and English, answers in the same mix, and turns what you said into a
+ZenMode OS action: an intent timer in the island, a focus session, a pause in front of an app, your
+Zen Score read aloud, or an evening note made into a Zen Card for your circle. It lives in
+`Packages/ZenShared/Sources/ZenVoice` and runs its tests on Linux.
+
+**How the app uses it.** The notch and the island bind to `VoiceModel` (`@Observable`, no SwiftUI):
+
+```swift
+let voice = VoiceModel(tokens: services.voiceTokens, scores: services.scores, cards: services.cards,
+                       ledger: OnDeviceLedger(store: UserDefaultsKeyValueStore()),
+                       userName: user.firstName, audio: AVAudioVoiceIO())
+await voice.start(pickup: true)   // on a pickup or a notch tap: Zeno asks "What are you here for?"
+// voice.state            idle · connecting · listening · thinking · speaking · ended · error
+// voice.lines            transcripts, each with its languageLabel ("Tanglish", "Hindi" …)
+// voice.card             the tool card: intent timer, focus, pause, status, Zen Card
+// voice.activeIntent     the island timer;  voice.timeUp when its minutes run out
+// voice.latencyMs        end of speech to Zeno's first audio
+await voice.stop()
+```
+
+`VoiceModel.demo(scores: FakeScores(), cards: FakeZenCards())` plays the five moments from the
+prototype with no mic, no network and no key: scripted words, real tool calls on a ledger of its
+own. `onDemoLine` hands each line (with its language and clip name) to the app to voice.
+
+**Token flow.** The Gemini key never reaches a device.
+
+```
+app ──liveToken()──▶ backend (VoiceTokenService) ──▶ Gemini auth_tokens: single use,
+ │                     connect within ~1 min, session ends after ~30 min, model + Zeno's
+ │                     instruction + tools locked in
+ └──wss …BidiGenerateContentConstrained?access_token=…──▶ Gemini Live
+       setup (must match the token) → mic 16 kHz PCM16, 40 ms chunks → 24 kHz audio,
+       transcripts, tool calls → tool responses
+```
+
+`ZenoSession` swaps a token past its `connectBy` for a fresh one, and on `goAway` or a dropped
+connection resumes on a new token with the server's session resumption handle. Barge-in is the
+server's (`START_OF_ACTIVITY_INTERRUPTS`); on `interrupted` the app flushes playback.
+
+**Privacy.** Intents, focus sessions, app pauses and pickups run on the device in
+`OnDeviceLedger`; app names never go to the backend. `get_zen_status` reads the account's live,
+combined Zen Score through `ScoreService`, and Screen Time minutes are never sent anywhere. Only
+the evening note goes to the backend, through `ZenCardService`: a Zen Card carries the summary,
+a mood and the language, and the shared card adds the display name, never a score next to a name.
 
 ## Building and testing
 

@@ -1,0 +1,154 @@
+{
+  "about": "Zeno Voice's function declarations, as mintLiveToken locks them into every ephemeral token (functions/src/zenoVoice.ts writes this file: npm run voice-tools). The app's ZenVoice keeps a copy and must handle exactly these tools and arguments.",
+  "version": 1,
+  "tools": [
+    {
+      "name": "get_zen_status",
+      "description": "Read the user's ZenMode OS state on this device: Zen Score (0-10, one decimal), change today, minutes left in today's screen-time promise, good days this week, weekly streak, the open session, focus and paused apps.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {}
+      }
+    },
+    {
+      "name": "set_intent",
+      "description": "Start an intentional session: which app the user is opening, why, and for how many minutes. ZenMode OS shows a timer and nudges when the minutes are up.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "app": {
+            "type": "STRING",
+            "description": "App name, e.g. Instagram, YouTube, WhatsApp."
+          },
+          "purpose": {
+            "type": "STRING",
+            "description": "Why, in a few words, in English."
+          },
+          "minutes": {
+            "type": "INTEGER",
+            "description": "Minutes the user asked for, 1 to 180."
+          }
+        },
+        "required": [
+          "app",
+          "minutes"
+        ]
+      }
+    },
+    {
+      "name": "end_session",
+      "description": "End the open intentional session. Pass overrun_minutes if the user went past the minutes they asked for.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "session_id": {
+            "type": "STRING"
+          },
+          "overrun_minutes": {
+            "type": "INTEGER"
+          }
+        }
+      }
+    },
+    {
+      "name": "start_focus",
+      "description": "Start a focus session. Notifications hold on every screen on the account until it ends.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "minutes": {
+            "type": "INTEGER",
+            "description": "Focus length in minutes, 5 to 240."
+          },
+          "label": {
+            "type": "STRING",
+            "description": "What the focus is for, in English."
+          },
+          "quiet_apps": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            },
+            "description": "Apps to hold, if the user named any."
+          }
+        },
+        "required": [
+          "minutes",
+          "label"
+        ]
+      }
+    },
+    {
+      "name": "pause_app",
+      "description": "Put a short pause (default 7 seconds) in front of an app, so opening it becomes a choice.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "app": {
+            "type": "STRING"
+          },
+          "seconds": {
+            "type": "INTEGER",
+            "description": "3 to 30. Default 7."
+          }
+        },
+        "required": [
+          "app"
+        ]
+      }
+    },
+    {
+      "name": "log_reflection",
+      "description": "Save the user's spoken evening note as a Zen Card.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "summary": {
+            "type": "STRING",
+            "description": "One line in the user's own language and script, at most 280 characters. No scores, minutes or app names."
+          },
+          "mood": {
+            "type": "STRING",
+            "enum": [
+              "happy",
+              "pleasant",
+              "neutral",
+              "tired",
+              "sad"
+            ]
+          },
+          "language": {
+            "type": "STRING",
+            "description": "BCP-47 code of what the user spoke, e.g. ta, hi, en, ta-Latn, hi-Latn."
+          },
+          "earned_back": {
+            "type": "STRING",
+            "description": "What they earned back, in English, at most 40 characters."
+          },
+          "drift": {
+            "type": "STRING",
+            "description": "Where time slipped, if they said so, at most 80 characters."
+          }
+        },
+        "required": [
+          "summary",
+          "mood",
+          "language"
+        ]
+      }
+    },
+    {
+      "name": "share_with_circle",
+      "description": "Share the latest Zen Card with the user's cohort: their display name, the summary, mood and language, never a score. Only call after the user says yes.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "note": {
+            "type": "STRING",
+            "description": "An optional short note for the cohort, at most 120 characters."
+          }
+        }
+      }
+    }
+  ]
+}
