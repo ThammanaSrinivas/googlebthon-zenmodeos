@@ -113,6 +113,30 @@ struct AfterHoursGuardTests {
         g.enabled = true
         #expect(g.isAfterHours(Date(timeIntervalSince1970: 1_795_179_600)))
     }
+
+    @Test("A block that ends in the evening puts the evening back; at work it leaves things alone")
+    func blockEndedRestoresEvening() async {
+        let g = AfterHoursGuard(defaults: scratchDefaults())
+        g.save(WorkHours(start: "00:00", end: "00:01", days: [1, 2, 3, 4, 5, 6, 7], tz: "Asia/Kolkata"))
+        var applied = 0
+        g.applyEvening = { _ in applied += 1 }
+        let evening = Date(timeIntervalSince1970: 1_795_179_600)
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Kolkata")!
+        let atWork = cal.date(from: DateComponents(year: 2026, month: 11, day: 20, hour: 0, minute: 0, second: 30))!
+
+        await g.blockEnded(now: evening)
+        #expect(applied == 0)            // the evening isn't on yet
+        await g.endWorkNow()
+        #expect(applied == 1 && g.offline)
+        await g.blockEnded(now: evening)
+        #expect(applied == 2)            // the block's end cleared Slack: it goes back on
+        await g.blockEnded(now: atWork)
+        #expect(applied == 2)            // during work hours a block's end changes nothing
+        g.enabled = false
+        await g.blockEnded(now: evening)
+        #expect(applied == 2)            // guard switched off
+    }
 }
 
 @MainActor

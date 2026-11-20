@@ -97,6 +97,8 @@ extension AppModel {
         let line = ended.record.kept ? "Block kept. Let's see what came in." : "Focus ended. Everything's back on."
         notch.speak(.init(feeling: ended.record.kept ? .happy : .pleasant, kicker: "Focus Mode", line: line, important: true),
                     hold: .seconds(3), respectQuiet: false)
+        // The block's hooks have just cleared Slack and Do Not Disturb: after hours, the evening goes back on.
+        Task { await afterHours.blockEnded() }
         Task {
             await catchUp.focusEnded(since: ended.record.session.startAt)
             if case .waiting(let n) = catchUp.state {

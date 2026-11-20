@@ -36,6 +36,8 @@ final class AfterHoursGuard {
     @ObservationIgnored private var lastCounted: Date?
     @ObservationIgnored private weak var focus: FocusModel?
     @ObservationIgnored private var sync: @Sendable () -> (any FocusSyncService)? = { nil }
+    /// Turns the evening on (Slack status and snooze, Do Not Disturb). Tests swap it for a recorder.
+    @ObservationIgnored var applyEvening: @MainActor (Date) async -> Void = { _ in }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -43,6 +45,7 @@ final class AfterHoursGuard {
             ?? WorkHours(tz: TimeZone.current.identifier)
         enabled = defaults.object(forKey: Self.enabledKey) as? Bool ?? true
         offline = defaults.bool(forKey: Self.offlineKey)
+        applyEvening = { [weak self] now in await self?.eveningOn(now: now) }
     }
 
     var window: WorkWindow? { WorkWindow(hours) }
@@ -101,6 +104,20 @@ final class AfterHoursGuard {
     private func workEnded(now: Date) async {
         onWorkEnded?()
         offline = true
+        await applyEvening(now)
+    }
+
+    /// A focus block just ended, and its hooks cleared Slack's status, ended the snooze and turned
+    /// Do Not Disturb off. If the evening is on, it goes back on: a block that runs past the end of
+    /// work must not hand the evening back to Slack.
+    func blockEnded(now: Date = Date()) async {
+        guard offline, isAfterHours(now) else { return }
+        await applyEvening(now)
+    }
+
+    /// Slack "Offline, back …" with notifications paused until work starts, and the Mac quiet.
+    /// Do Not Disturb waits while a block runs: its own hook has it on, and its end calls blockEnded.
+    private func eveningOn(now: Date) async {
         let s = FocusSettings(defaults: defaults)
         guard let back = window?.nextStart(after: now) else { return }
         let text = AfterHours.statusText(back: back, now: now, timeZone: window?.timeZone ?? .current)
