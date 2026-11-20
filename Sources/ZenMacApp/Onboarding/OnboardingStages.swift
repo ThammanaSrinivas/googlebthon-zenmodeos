@@ -351,8 +351,26 @@ struct ProfileStage: View {
         .padding(ZenSpace.s8)
         .frame(width: 480)
         .glassCard(radius: ZenRadius.xxxl)
+        // Zeno perches on the card and reacts to each answer.
+        .overlay(alignment: .topTrailing) {
+            ZenoView(perchFeeling)
+                .frame(width: 92)
+                .shadow(color: perchFeeling.skin.glow.opacity(0.45), radius: 16, y: 6)
+                .offset(x: -28, y: -58)
+                .animation(ZenMotion.zenoHappy, value: perchFeeling)
+                .accessibilityHidden(true)
+        }
+        .padding(.top, 58)
         .animation(ZenMotion.container, value: p)
         .animation(ZenMotion.container, value: model.codeState)
+    }
+
+    private var perchFeeling: ZenoFeeling {
+        switch model.step {
+        case .uses: model.profile.uses.isEmpty ? .curious : .happy
+        case .quiet: .sleepy
+        default: model.profile.seat == .personal ? .pleasant : .curious
+        }
     }
 
     private func row(_ label: String, @ViewBuilder _ value: () -> some View) -> some View {
@@ -428,50 +446,91 @@ private struct CohortPreviewCard: View {
 
 // MARK: - Let it count
 
+/// This Mac's screen, lit: Zeno watching from the notch, the app in front right now, and how three
+/// familiar apps count (an icon and words for each, never colour alone).
 struct CountStage: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var breathe = false
 
     var body: some View {
         let front = model.frontmost.current
-        VStack(alignment: .leading, spacing: ZenSpace.s5) {
-            HStack {
-                Eyebrow(Copy.Count.nowInFront)
-                Spacer()
-                Circle().fill(Color.zen.brandFill).frame(width: 8, height: 8)
-                Text("Measuring").font(ZenFont.number(10.5)).foregroundStyle(Color.zen.textBrand)
+        VStack(spacing: ZenSpace.s5) {
+            ZStack(alignment: .top) {
+                ScreenGlow(tilt: 0.1)
+                VStack(spacing: ZenSpace.s3) {
+                    Spacer().frame(height: 62)
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.zen.brandSoft).frame(width: 7, height: 7)
+                            .shadow(color: Color.zen.brandSoft, radius: breathe ? 6 : 1)
+                            .scaleEffect(breathe ? 1.15 : 0.9)
+                        Text(Copy.Count.nowInFront.uppercased()).font(ZenFont.number(9.5)).tracking(1.1)
+                            .foregroundStyle(Color.zen.islandDetail)
+                    }
+                    Text(front?.name ?? "–")
+                        .font(ZenFont.text(30, .semibold)).tracking(-0.6)
+                        .foregroundStyle(Color.zen.islandText)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                        .contentTransition(.opacity)
+                    if let kind = front?.kind.rawValue {
+                        Text(kind).font(ZenFont.text(12.5, .semibold))
+                            .padding(.horizontal, 10).frame(height: 24)
+                            .background(Capsule().fill(Color.zen.brandSoft.opacity(0.16)))
+                            .overlay(Capsule().strokeBorder(Color.zen.brandSoft.opacity(0.5), lineWidth: 1))
+                            .foregroundStyle(Color.zen.brandSoft)
+                    }
+                    Text(model.accessibilityTrusted ? Copy.Count.titleNote : "Allow Accessibility to tell browser tabs apart.")
+                        .font(ZenFont.text(12, .medium)).foregroundStyle(Color.zen.islandText.opacity(0.78))
+                        .padding(.top, 2)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, ZenSpace.s6)
+                // The notch, with Zeno watching.
+                ZStack {
+                    UnevenRoundedRectangle(bottomLeadingRadius: 16, bottomTrailingRadius: 16, style: .continuous).fill(Color.zen.island)
+                    ZenoView(.curious).frame(width: 40).offset(y: 2)
+                }
+                .frame(width: 150, height: 40)
             }
-            HStack(alignment: .firstTextBaseline) {
-                Text(front?.name ?? "–").zenType(.headline).foregroundStyle(Color.zen.textHeading)
-                    .contentTransition(.opacity)
-                Spacer()
-                Text(front?.kind.rawValue ?? "").font(ZenFont.text(13, .semibold))
-                    .padding(.horizontal, 10).frame(height: 26)
-                    .background(Capsule().fill(Color.zen.surfaceTint))
-                    .foregroundStyle(Color.zen.textBrand)
-            }
-            Text(model.accessibilityTrusted ? Copy.Count.titleNote : "Allow Accessibility to tell browser tabs apart.")
-                .zenType(.caption).foregroundStyle(Color.zen.textCaption)
-            Divider().overlay(Color.zen.borderHairline)
+            .frame(width: 480, height: 270)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(9)
+            .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Color(hex: 0x050605)))
+            .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.05)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+            .shadow(color: .black.opacity(0.28), radius: 30, y: 18)
+            .shadow(color: Color.zen.brandSoft.opacity(0.18), radius: 40, y: 20)
+
             VStack(spacing: ZenSpace.s2) {
-                example("Xcode", "Work · doesn't count")
-                example("Docs in Chrome", "Work · doesn't count")
-                example("YouTube in Chrome", "Counts toward the day")
+                example("hammer.fill", "Xcode", counts: false)
+                example("doc.text.fill", "Docs in Chrome", counts: false)
+                example("play.rectangle.fill", "YouTube in Chrome", counts: true)
             }
+            .frame(width: 498)
         }
-        .padding(ZenSpace.s8)
-        .frame(width: 480)
-        .glassCard(radius: ZenRadius.xxxl)
         .animation(ZenMotion.container, value: front)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { breathe = true }
+        }
+        .accessibilityElement(children: .contain)
     }
 
-    private func example(_ name: String, _ note: String) -> some View {
-        HStack {
+    private func example(_ symbol: String, _ name: String, counts: Bool) -> some View {
+        HStack(spacing: ZenSpace.s3) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.zen.textBody).frame(width: 22)
             Text(name).font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
             Spacer()
-            Text(note).zenType(.caption).foregroundStyle(Color.zen.textCaption)
+            Label(counts ? "Counts toward the day" : "Work · doesn't count",
+                  systemImage: counts ? "minus.circle.fill" : "checkmark.circle.fill")
+                .font(ZenFont.text(12.5, .medium))
+                .foregroundStyle(counts ? Color.zen.scoreDeduct : Color.zen.textBrand)
         }
-        .padding(.horizontal, ZenSpace.s4).frame(height: 40)
-        .background(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous).fill(Color.zen.surfaceCard.opacity(0.55)))
+        .padding(.horizontal, ZenSpace.s4).frame(height: 44)
+        .background(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous).fill(Color.zen.surfaceRaised.opacity(0.6)))
+        .overlay(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous).strokeBorder(Color.zen.borderHairline, lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 }
 

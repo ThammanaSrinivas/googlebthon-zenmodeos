@@ -297,9 +297,10 @@ struct StepTrack: View {
                 }
             }
             HStack(spacing: 6) {
-                Text("\(current)/\(total)")
+                Text(verbatim: "\(current)/\(total)")
                     .font(ZenFont.number(11.5))
                     .foregroundStyle(Color.zen.textHeading)
+                    .fixedSize()
                 Text(label)
                     .font(ZenFont.text(12.5, .medium))
                     .foregroundStyle(Color.zen.textCaption)
@@ -307,6 +308,7 @@ struct StepTrack: View {
                     .fixedSize()
             }
         }
+        .fixedSize()
         .animation(reduceMotion ? nil : ZenMotion.container, value: current)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Step \(current) of \(total): \(label)")
@@ -451,19 +453,21 @@ struct ChoiceButtonStyle: ButtonStyle {
         @Environment(\.isFocused) private var focused
         @Environment(\.isEnabled) private var enabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Environment(\.colorScheme) private var scheme
         @State private var hovering = false
 
         var body: some View {
             let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+            let sheen = scheme == .dark ? 0.07 : (selected ? 0.16 : 0.22)
             configuration.label
                 .background {
                     ZStack {
                         shape.fill(selected ? Color.zen.surfaceTint.opacity(0.9) : Color.zen.surfaceRaised.opacity(hovering ? 0.75 : 0.5))
                         // A key light along the top edge: lit, never a flat fill.
-                        shape.fill(LinearGradient(colors: [.white.opacity(selected ? 0.16 : 0.22), .clear], startPoint: .top, endPoint: .center))
+                        shape.fill(LinearGradient(colors: [.white.opacity(sheen), .clear], startPoint: .top, endPoint: .center))
                     }
                 }
-                .glassEffect(selected ? .regular.tint(Color.zen.brandSoft.opacity(0.22)) : .regular, in: .rect(cornerRadius: radius))
+                .glassEffect(.regular, in: .rect(cornerRadius: radius))
                 .overlay {
                     shape.strokeBorder(selected ? Color.zen.brandFill : Color.zen.borderOutline.opacity(hovering ? 1 : 0.7),
                                        lineWidth: selected ? 1.5 : 1)
@@ -516,7 +520,7 @@ private struct Radio: View {
 
     var body: some View {
         ZStack {
-            Circle().strokeBorder(on ? Color.zen.brandFill : Color.zen.borderOutline, lineWidth: 1.5)
+            Circle().strokeBorder(on ? Color.zen.brandFill : Color.zen.textCaption.opacity(0.8), lineWidth: 1.5)
             if on {
                 Circle().fill(Color.zen.brandFill)
                 Image(systemName: "checkmark").font(.system(size: 9.5, weight: .heavy)).foregroundStyle(.white)
@@ -753,11 +757,12 @@ private struct BringColumn: View {
                 .rise(0)
             VStack(alignment: .leading, spacing: ZenSpace.s2) {
                 Eyebrow(Copy.Bring.roleQuestion)
-                HStack(spacing: ZenSpace.s2) {
+                HStack(alignment: .top, spacing: ZenSpace.s2) {
                     ForEach(AppModel.SignInRole.allCases, id: \.self) { role in
                         RoleCard(role: role, selected: model.signInRole == role) { model.choose(role: role) }
                     }
                 }
+                .fixedSize(horizontal: false, vertical: true)
             }
             .rise(1)
             VStack(alignment: .leading, spacing: ZenSpace.s3) {
@@ -818,10 +823,9 @@ private struct RoleCard: View {
                     Text(copy.caption).zenType(.caption).foregroundStyle(Color.zen.textBody)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
             }
             .padding(ZenSpace.s4)
-            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .buttonStyle(ChoiceButtonStyle(selected: selected, radius: ZenRadius.xl))
         .accessibilityLabel("\(copy.title). \(copy.caption)")

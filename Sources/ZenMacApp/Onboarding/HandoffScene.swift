@@ -341,7 +341,7 @@ private enum Metal {
 }
 
 /// The lit glass of a screen: ink with ZenMode OS's green aurora rising from below.
-private struct ScreenGlow: View {
+struct ScreenGlow: View {
     let tilt: CGFloat
 
     var body: some View {
