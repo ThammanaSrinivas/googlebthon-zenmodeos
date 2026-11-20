@@ -55,6 +55,9 @@ struct RootView: View {
             }
         }
         .transition(.opacity)
+        // Every system control (switches, pickers, sliders, progress) in the brand green, not the
+        // Mac's accent colour, so a switch that's on reads as on in light and dark.
+        .tint(Color.zen.brandFill)
         .preferredColorScheme(scheme)
     }
 

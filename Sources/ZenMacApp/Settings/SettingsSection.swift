@@ -422,7 +422,7 @@ private struct NotchPreviewCard: View {
                 HStack(spacing: ZenSpace.s3) {
                     ZenoView(feeling).frame(width: 84)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("ZENMODE · PREVIEW").font(ZenFont.number(9.5)).tracking(0.9).foregroundStyle(feeling.skin.glow)
+                        Text("ZENMODE OS · PREVIEW").font(ZenFont.number(9.5)).tracking(0.9).foregroundStyle(feeling.skin.glow)
                         Text(enabled ? "Good day locked in. Nice." : "Zeno's off. Nothing here.")
                             .font(ZenFont.text(14.5, .semibold)).foregroundStyle(Color.zen.islandText)
                     }
