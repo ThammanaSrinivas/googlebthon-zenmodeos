@@ -78,6 +78,45 @@ struct StreakCalendar: Sendable {
     }
 }
 
+// MARK: - A week's pattern
+
+/// How a finished week went, in one short line drawn from its seven scores: when it was won, or the
+/// shape it took if it wasn't. Only what the day scores can tell; never a guess about hours or apps.
+enum WeekPattern {
+    static let dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    /// Two halves or two parts of the week this far apart (in tenths) make a shape worth naming.
+    static let gap = 10
+
+    static func headline(days: [ZenScore?], wonOn: Int?) -> String {
+        let scored = days.prefix(7).enumerated().compactMap { i, s in s.map { (i, $0.tenths) } }
+        let good = scored.filter { ZenScore(tenths: $0.1).isGoodDay }.count
+        if scored.count < 3 { return "A quiet week on record" }
+        if good == 7 { return "Seven good days of seven" }
+        if let wonOn, dayNames.indices.contains(wonOn) {
+            switch wonOn {
+            case ...3: return "Won by \(dayNames[wonOn])"
+            case 4: return "Won on Friday"
+            default: return "Sealed on \(dayNames[wonOn])"
+            }
+        }
+        if good == 3 { return "One good day short" }
+        func mean(_ part: [(Int, Int)]) -> Int? { part.isEmpty ? nil : part.map(\.1).reduce(0, +) / part.count }
+        if let start = mean(scored.filter { $0.0 <= 2 }), let finish = mean(scored.filter { $0.0 >= 4 }) {
+            if start - finish >= gap { return "Strong start, slow finish" }
+            if finish - start >= gap { return "Slow start, strong finish" }
+        }
+        if let weekdays = mean(scored.filter { $0.0 < 5 }), let weekend = mean(scored.filter { $0.0 >= 5 }) {
+            if weekend - weekdays >= gap { return "Busy weekdays, calm weekend" }
+            if weekdays - weekend >= gap { return "Calm weekdays, busy weekend" }
+        }
+        let values = scored.map(\.1)
+        if let hi = values.max(), let lo = values.min(), hi - lo <= gap { return "Steady all week" }
+        let low = scored.min { $0.1 < $1.1 }!
+        return "\(dayNames[low.0]) pulled it down"
+    }
+}
+
 // MARK: - The weekly review
 
 /// What the weekly review may be written from: outcomes only. The iPhone contributes its score and

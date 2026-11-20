@@ -4,33 +4,26 @@ import ZenAPI
 
 // MARK: - The Recaps page
 
-/// Every week on record. The one picked plays as a story beside its numbers; below, every week as a
-/// moment, by month; at the foot, the streak so far.
+/// Every week on record, by month, as cards; at the foot, the streak so far. A card opens its week
+/// over the page.
 struct RecapsPage: View {
     enum Filter: String, CaseIterable { case all = "All", won = "Won", short = "Short" }
 
     let entries: [RecapEntry]
     let streak: StreakCalendar?
-    @Binding var selected: Date?
+    let open: (RecapEntry) -> Void
     let back: () -> Void
     @State private var filter: Filter = .all
 
     var body: some View {
         let shown = entries.filter { filter == .all || (filter == .won) == $0.isWon }
-        let current = entries.first { $0.id == selected } ?? entries.first
         ScrollView {
             VStack(alignment: .leading, spacing: ZenSpace.s8) {
                 header
-                if let current {
-                    RecapPreview(entry: current)
-                        .id(current.id)
-                        .transition(.opacity)
-                }
-                everyWeek(shown, current: current)
+                everyWeek(shown)
                 if let streak { StreakSoFar(streak: streak, entries: entries) }
             }
             .padding(ZenSpace.s6)
-            .animation(ZenMotion.container, value: selected)
             .animation(ZenMotion.container, value: filter)
         }
         .scrollIndicators(.hidden)
@@ -64,17 +57,16 @@ struct RecapsPage: View {
         }
     }
 
-    private func everyWeek(_ shown: [RecapEntry], current: RecapEntry?) -> some View {
+    private func everyWeek(_ shown: [RecapEntry]) -> some View {
         let months = Dictionary(grouping: shown) { Calendar.current.dateInterval(of: .month, for: $0.id)!.start }
-        return VStack(alignment: .leading, spacing: ZenSpace.s6) {
+        return VStack(alignment: .leading, spacing: ZenSpace.s8) {
             ForEach(months.keys.sorted(by: >), id: \.self) { month in
-                VStack(alignment: .leading, spacing: ZenSpace.s3) {
+                VStack(alignment: .leading, spacing: ZenSpace.s4) {
                     Text(month.formatted(.dateTime.month(.wide).year())).zenType(.title).foregroundStyle(Color.zen.textHeading)
                         .accessibilityAddTraits(.isHeader)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 190, maximum: 260), spacing: ZenSpace.s4)], alignment: .leading, spacing: ZenSpace.s4) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: ZenSpace.s5)], alignment: .leading, spacing: ZenSpace.s5) {
                         ForEach(months[month] ?? []) { entry in
-                            Button { selected = entry.id } label: { RecapThumb(entry: entry, isSelected: entry.id == current?.id) }
-                                .buttonStyle(PressScale())
+                            RecapCard(entry: entry) { open(entry) }
                         }
                     }
                 }
@@ -112,54 +104,179 @@ struct SegmentPill: View {
     }
 }
 
-// MARK: - One recap, previewed
+// MARK: - One recap, over the page
 
-/// The picked week: its story on the left, its numbers on the right, one primary action.
-private struct RecapPreview: View {
-    let entry: RecapEntry
+/// A recap opened over the page: the page dims and blurs behind it, and the week sits on its own
+/// sheet, its story on the left and its numbers on the right. Escape, the close button or a click
+/// on the dim closes it; Tab stays inside until it does; ⌘← and ⌘→ step to the older or newer week.
+struct RecapOverlay: View {
+    enum Spot: Hashable { case close, older, newer, story, share }
+
+    let entries: [RecapEntry]
+    @Binding var openID: Date?
+    @Environment(\.colorScheme) private var scheme
+    @FocusState private var focus: Spot?
 
     var body: some View {
-        HStack(alignment: .top, spacing: ZenSpace.s8) {
-            RecapStory(entry: entry)
-                .frame(width: 300, height: 520)
-            RecapNumbers(entry: entry)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        let index = entries.firstIndex { $0.id == openID }
+        ZStack {
+            Color.black.opacity(scheme == .dark ? 0.55 : 0.32)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { openID = nil }
+                .accessibilityHidden(true)
+            if let index {
+                sheet(entries[index], index: index)
+                    .padding(ZenSpace.s8)
+            }
         }
-        .padding(ZenSpace.s6)
-        .glassCard(radius: ZenRadius.xxxl)
+        .onExitCommand { openID = nil }
+        .onKeyPress(.tab, phases: .down) { press in
+            cycle(back: press.modifiers.contains(.shift), index: index)
+            return .handled
+        }
+        .onAppear { focus = .close }
+    }
+
+    private func sheet(_ entry: RecapEntry, index: Int) -> some View {
+        let shape = RoundedRectangle(cornerRadius: ZenRadius.xxxl, style: .continuous)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: ZenSpace.s6) {
+                header(entry, index: index)
+                HStack(alignment: .top, spacing: ZenSpace.s8) {
+                    RecapStory(entry: entry)
+                        .frame(width: 300, height: 520)
+                        .focused($focus, equals: .story)
+                    RecapNumbers(entry: entry, focus: $focus)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(ZenSpace.s8)
+            .id(entry.id)
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxWidth: 1080)
+        .fixedSize(horizontal: false, vertical: true)
+        .background {
+            shape.fill(Color.zen.surfaceRaised)
+                .overlay(alignment: .topLeading) {
+                    // The sheet catches the week's light in its corner.
+                    RadialGradient(colors: [Color(hex: entry.tone.glow, alpha: scheme == .dark ? 0.18 : 0.22), .clear],
+                                   center: .topLeading, startRadius: 0, endRadius: 520)
+                        .clipShape(shape)
+                        .allowsHitTesting(false)
+                }
+        }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.zen.borderHairline, lineWidth: 1))
+        .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.22), radius: 40, y: 24)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Recap, week \(entry.weekNumber)")
+        .accessibilityAddTraits(.isModal)
+    }
+
+    private func header(_ entry: RecapEntry, index: Int) -> some View {
+        HStack(alignment: .top, spacing: ZenSpace.s4) {
+            VStack(alignment: .leading, spacing: ZenSpace.s2) {
+                HStack(spacing: ZenSpace.s3) {
+                    Eyebrow("Week \(entry.weekNumber) · \(entry.range)", color: Color.zen.textBrand)
+                    RecapOutcomeBadge(entry: entry)
+                }
+                Text(entry.headline).font(ZenFont.brand(34)).tracking(-0.9).foregroundStyle(Color.zen.textHeading)
+                    .accessibilityAddTraits(.isHeader)
+                Text(entry.body).font(ZenFont.text(15)).lineSpacing(5).foregroundStyle(Color.zen.textBody)
+                    .frame(maxWidth: 640, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: ZenSpace.s4)
+            HStack(spacing: ZenSpace.s2) {
+                iconButton("chevron.left", WeekCopy.olderWeek, spot: .older, enabled: index + 1 < entries.count) {
+                    openID = entries[index + 1].id
+                }
+                .keyboardShortcut(.leftArrow, modifiers: .command)
+                iconButton("chevron.right", WeekCopy.newerWeek, spot: .newer, enabled: index > 0) {
+                    openID = entries[index - 1].id
+                }
+                .keyboardShortcut(.rightArrow, modifiers: .command)
+                iconButton("xmark", WeekCopy.closeRecap, spot: .close, enabled: true) { openID = nil }
+                    .keyboardShortcut(.cancelAction)
+                    .padding(.leading, ZenSpace.s2)
+            }
+        }
+    }
+
+    private func iconButton(_ symbol: String, _ label: String, spot: Spot, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
+        }
+        .buttonStyle(RoundIconButtonStyle())
+        .disabled(!enabled)
+        .focused($focus, equals: spot)
+        .accessibilityLabel(label)
+        .help(label)
+    }
+
+    /// Tab and Shift-Tab go round the sheet's controls and never leave it.
+    private func cycle(back: Bool, index: Int?) {
+        guard let index else { return }
+        var order: [Spot] = [.close]
+        if index + 1 < entries.count { order.append(.older) }
+        if index > 0 { order.append(.newer) }
+        order += [.story, .share]
+        let at = focus.flatMap(order.firstIndex(of:)) ?? -1
+        let next = back ? (at <= 0 ? order.count - 1 : at - 1) : (at + 1) % order.count
+        focus = order[next]
     }
 }
 
-/// The week in numbers: the read, each screen's part, the week as cells, the month as a pattern.
+/// A round icon control: raised paper, an outline that firms up on hover, a sink on press, a brand
+/// ring on keyboard focus, faded when it can't be used.
+struct RoundIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
+
+    private struct Styled: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        @Environment(\.isFocused) private var focused
+        @State private var hovering = false
+
+        var body: some View {
+            configuration.label
+                .foregroundStyle(Color.zen.textHeading)
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(hovering && isEnabled ? Color.zen.surfaceTint : Color.zen.surfaceCard))
+                .overlay(Circle().strokeBorder(hovering && isEnabled ? Color.zen.textBrand.opacity(0.6) : Color.zen.borderOutline, lineWidth: 1))
+                .overlay { if focused { Circle().strokeBorder(Color.zen.textBrand, lineWidth: 2.5).padding(-4) } }
+                .opacity(isEnabled ? 1 : 0.4)
+                .scaleEffect(configuration.isPressed ? 0.94 : 1)
+                .animation(ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
+                .animation(ZenMotion.calm(ZenMotion.t2), value: hovering)
+                .onHover { hovering = $0 }
+                .contentShape(Circle())
+        }
+    }
+}
+
+/// The week in numbers: each screen's part, the week as cells, the month as a pattern, and the
+/// sheet's one primary action, Share.
 private struct RecapNumbers: View {
     @Environment(AppModel.self) private var model
     let entry: RecapEntry
+    var focus: FocusState<RecapOverlay.Spot?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: ZenSpace.s5) {
-            VStack(alignment: .leading, spacing: ZenSpace.s2) {
-                HStack(spacing: ZenSpace.s2) {
-                    Eyebrow("Week \(entry.weekNumber) · \(entry.range)", color: Color.zen.textBrand)
-                    Text(entry.isWon ? "\(WeekCopy.won) · \(entry.streakAfter)-week streak" : entry.outcome)
-                        .font(ZenFont.number(10)).tracking(0.6)
-                        .foregroundStyle(entry.isWon ? Color.zen.accentRewardText : Color.zen.textCaption)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Capsule().fill(entry.isWon ? Color.zen.accentRewardTint : Color.zen.surfaceSunk))
-                }
-                Text(entry.headline).font(ZenFont.brand(30)).tracking(-0.8).foregroundStyle(Color.zen.textHeading)
-                Text(entry.body).font(ZenFont.text(14.5)).lineSpacing(5).foregroundStyle(Color.zen.textBody)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             HStack(spacing: ZenSpace.s3) {
                 stat(WeekCopy.statGood, "\(entry.goodDays)", "of 7")
-                stat(WeekCopy.average, entry.average?.text ?? "–", "Zen Score")
+                stat(WeekCopy.scoreLabel, entry.average?.text ?? "–", WeekCopy.scoreSublabel)
                 stat(WeekCopy.statPullBacks, "\(entry.pullBacks)", "on this Mac")
                 stat(WeekCopy.statMac, ClockMinutes.text(entry.macTotal), "distracting")
             }
             ScreensChart(entry: entry)
             HStack(alignment: .center, spacing: ZenSpace.s4) {
                 PatternTile(month: Archetype.deepWorker.month(seed: UInt64(2026 + entry.index)), kind: model.preferences.values.pattern)
-                    .frame(width: 112, height: 112)
+                    .frame(width: 96, height: 96)
                 VStack(alignment: .leading, spacing: 4) {
                     Eyebrow("Your month around it · \(model.preferences.values.pattern.rawValue)")
                     Text(WeekCopy.patternLine).zenType(.caption).foregroundStyle(Color.zen.textCaption)
@@ -168,12 +285,9 @@ private struct RecapNumbers: View {
                 Spacer(minLength: 0)
                 ShareImageButton(fileName: "ZenMode OS week \(entry.weekNumber).png", make: { ImageExport.png(RecapShareImage(entry: entry)) }) {
                     Label(WeekCopy.shareWeek, systemImage: "square.and.arrow.up")
-                        .font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.onActionPrimary)
-                        .padding(.horizontal, ZenSpace.s5).frame(height: 40)
-                        .background(Capsule().fill(Color.zen.actionPrimary))
-                        .contentShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ZenPrimaryButtonStyle())
+                .focused(focus, equals: .share)
                 .accessibilityHint(WeekCopy.shareHint)
             }
         }
@@ -380,9 +494,9 @@ struct RecapStory: View {
             ZenoView(entry.feeling).frame(width: 150).frame(maxWidth: .infinity)
             Spacer(minLength: 0)
             Text(WeekCopy.coverTitle).font(ZenFont.brand(30)).tracking(-0.6).foregroundStyle(Ink.text)
-            HStack(alignment: .firstTextBaseline, spacing: ZenSpace.s2) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(WeekCopy.scoreLabel) · \(WeekCopy.scoreSublabel)".uppercased()).font(ZenFont.number(10)).tracking(0.8).foregroundStyle(Ink.caption)
                 Text(entry.average?.text ?? "–").font(ZenFont.number(56)).foregroundStyle(entry.isWon ? Ink.gold : Ink.text)
-                Text(WeekCopy.avg).font(ZenFont.number(11)).foregroundStyle(Ink.mono)
             }
             Text(entry.outcome).font(ZenFont.text(15, .semibold)).foregroundStyle(Ink.body)
         }

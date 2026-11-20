@@ -118,7 +118,7 @@ final class WeekAskModel {
 
 // MARK: - The section
 
-/// Zeno's read of the week, one card: Gemini's review on the left, set questions on the right.
+/// Zeno's read of the week: Gemini's review beside a picture of the week, then the set questions.
 struct ExploreSection: View {
     let ask: WeekAskModel
 
@@ -130,144 +130,258 @@ struct ExploreSection: View {
                 Spacer()
                 DemoTag()
             }
-            HStack(alignment: .top, spacing: ZenSpace.s6) {
-                ReviewCard()
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                Rectangle().fill(Color.zen.borderHairline).frame(width: 1)
-                AskCard(ask: ask)
-                    .frame(width: 400, alignment: .topLeading)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(ZenSpace.s6)
-            .glassCard(radius: ZenRadius.xxxl)
+            ReviewCard()
+            AskCard(ask: ask)
         }
     }
 }
 
-/// Set questions as chips, the answer typing in below.
+/// Who wrote the words, said plainly: Gemini only when Gemini wrote them.
+private struct SourceCredit: View {
+    let source: NudgeSource
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if source == .gemini {
+                GeminiSpark(size: 11)
+            } else {
+                Image(systemName: "number").font(.system(size: 10, weight: .bold)).foregroundStyle(Color.zen.textCaption)
+                    .accessibilityHidden(true)
+            }
+            Text(source == .gemini ? WeekCopy.fromGemini : WeekCopy.fromNumbers)
+                .font(ZenFont.text(12, .medium)).foregroundStyle(Color.zen.textCaption)
+        }
+    }
+}
+
+/// Set questions as chips that look and act like secondary buttons, the answer typing in below.
 private struct AskCard: View {
     let ask: WeekAskModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: ZenSpace.s4) {
-            HStack(spacing: ZenSpace.s2) {
-                GeminiSpark()
+            VStack(alignment: .leading, spacing: ZenSpace.s1) {
                 Eyebrow(WeekCopy.askEyebrow)
+                Text(WeekCopy.askLede).zenType(.body).foregroundStyle(Color.zen.textBody)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            FlowLayout(spacing: ZenSpace.s2, lineSpacing: ZenSpace.s2) {
+            FlowLayout(spacing: ZenSpace.s2 + 2, lineSpacing: ZenSpace.s2 + 2) {
                 ForEach(WeekPrompt.all) { prompt in
                     let on = ask.selected == prompt
                     Button { ask.ask(prompt, recap: WeekDemo.recap, reduceMotion: reduceMotion) } label: {
                         Text(prompt.label)
-                            .font(ZenFont.text(13, .semibold))
-                            .foregroundStyle(on ? Color.zen.textBrand : Color.zen.textHeading)
-                            .padding(.horizontal, ZenSpace.s3 + 2).frame(height: 34)
-                            .background(Capsule().fill(on ? Color.zen.surfaceTint : Color.zen.surfaceCard.opacity(0.7)))
-                            .overlay(Capsule().strokeBorder(on ? Color.zen.textBrand.opacity(0.45) : Color.zen.borderHairline, lineWidth: 1))
-                            .contentShape(Capsule())
                     }
-                    .buttonStyle(PressScale())
+                    .buttonStyle(AskChipStyle(selected: on))
+                    .focusEffectDisabled()
                     .accessibilityHint(WeekCopy.askHint)
                     .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
                 }
             }
             answerArea
         }
+        .padding(ZenSpace.s6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(WeekPaper())
         .animation(ZenMotion.container, value: ask.loading)
         .animation(ZenMotion.container, value: ask.selected)
     }
 
     @ViewBuilder
     private var answerArea: some View {
+        let shape = RoundedRectangle(cornerRadius: ZenRadius.lg, style: .continuous)
         if ask.loading {
             HStack(spacing: ZenSpace.s3) {
                 LoadingCells()
-                Text(WeekCopy.askThinking).zenType(.caption).foregroundStyle(Color.zen.textCaption)
+                Text(WeekCopy.askThinking).zenType(.body).foregroundStyle(Color.zen.textBody)
             }
-            .padding(.top, ZenSpace.s1)
+            .padding(ZenSpace.s5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(shape.fill(Color.zen.surfaceRaised.opacity(0.8)))
             .accessibilityElement(children: .combine)
-        } else if let answer = ask.answer {
+        } else if let answer = ask.answer, let question = ask.selected {
             VStack(alignment: .leading, spacing: ZenSpace.s3) {
+                Text("\(WeekCopy.youAsked) · \(question.label)").font(ZenFont.text(12.5, .semibold)).foregroundStyle(Color.zen.textCaption)
                 Text(String(answer.text.prefix(ask.typed)))
-                    .font(ZenFont.text(14.5)).lineSpacing(5).foregroundStyle(Color.zen.textHeading)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .font(ZenFont.text(15.5)).lineSpacing(6).foregroundStyle(Color.zen.textHeading)
+                    .frame(maxWidth: 760, alignment: .topLeading)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(answer.text)
-                Text(answer.source == .gemini ? WeekCopy.askFromGemini : WeekCopy.askFromHere)
-                    .zenType(.caption).foregroundStyle(Color.zen.textCaption)
+                SourceCredit(source: answer.source)
             }
-            .padding(ZenSpace.s4)
-            .background(RoundedRectangle(cornerRadius: ZenRadius.lg, style: .continuous).fill(Color.zen.surfaceCard.opacity(0.65)))
+            .padding(ZenSpace.s5)
+            .padding(.leading, ZenSpace.s1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(shape.fill(Color.zen.surfaceRaised))
+            .overlay(shape.strokeBorder(Color.zen.borderHairline, lineWidth: 1))
             .overlay(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 2).fill(Color.zen.brandFill).frame(width: 3).padding(.vertical, ZenSpace.s3)
+                RoundedRectangle(cornerRadius: 2).fill(Color.zen.brandFill).frame(width: 3).padding(.vertical, ZenSpace.s4)
             }
             .transition(.opacity.combined(with: .offset(y: 6)))
         } else {
-            Text(WeekCopy.askEmpty).zenType(.caption).foregroundStyle(Color.zen.textCaption)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: ZenSpace.s2) {
+                Image(systemName: "arrow.turn.left.up").font(.system(size: 12, weight: .semibold)).accessibilityHidden(true)
+                Text(WeekCopy.askEmpty)
+            }
+            .font(ZenFont.text(13.5)).foregroundStyle(Color.zen.textBody)
+            .padding(ZenSpace.s5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(shape.strokeBorder(Color.zen.borderOutline, style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
         }
     }
 }
 
-/// Gemini's weekly review: one headline, a short read, one thing to try. Sits inside Explore's card.
+/// A question chip: a secondary button you can see at rest (raised paper, a firm outline), a
+/// green wash and outline on hover, a sink on press, a brand ring on keyboard focus, green when
+/// it's the question asked.
+struct AskChipStyle: ButtonStyle {
+    var selected = false
+
+    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration, selected: selected) }
+
+    private struct Styled: View {
+        let configuration: Configuration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var hovering = false
+
+        var body: some View {
+            let active = selected || hovering
+            HStack(spacing: 7) {
+                Image(systemName: selected ? "checkmark" : "bubble.left").font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.zen.textBrand)
+                    .accessibilityHidden(true)
+                configuration.label
+            }
+            .font(ZenFont.text(13.5, .semibold))
+            .foregroundStyle(selected ? Color.zen.textBrand : Color.zen.textHeading)
+            .padding(.horizontal, ZenSpace.s4)
+            .frame(minHeight: 36)
+            .background(Capsule().fill(active ? Color.zen.surfaceTint : Color.zen.surfaceRaised))
+            .overlay(Capsule().strokeBorder(active ? Color.zen.textBrand.opacity(selected ? 0.9 : 0.7) : Color.zen.textCaption.opacity(0.6),
+                                            lineWidth: selected ? 1.5 : 1))
+            .shadow(color: .black.opacity(hovering ? 0.12 : 0.05), radius: hovering ? 6 : 2, y: hovering ? 3 : 1)
+            .overlay { if focused { Capsule().strokeBorder(Color.zen.textBrand, lineWidth: 2.5).padding(-4) } }
+            .opacity(isEnabled ? 1 : 0.4)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
+            .animation(ZenMotion.calm(ZenMotion.t2), value: hovering)
+            .onHover { hovering = $0 }
+            .contentShape(Capsule())
+        }
+    }
+}
+
+/// Gemini's weekly review: this week drawn as light on the left, Zeno in it; the read on the right
+/// (a headline, a short read, one thing to try) with Regenerate.
 struct ReviewCard: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        let week = (model.snapshot ?? FakeSnapshot.value).week
+        HStack(alignment: .top, spacing: 0) {
+            ReviewArt(week: week)
+                .containerRelativeFrame(.horizontal) { width, _ in width * 0.28 }
+                .frame(maxHeight: .infinity)
+            read
+                .padding(ZenSpace.s8)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .modifier(WeekPaper())
+        .animation(ZenMotion.container, value: model.reviewLoading)
+    }
+
+    @ViewBuilder
+    private var read: some View {
         VStack(alignment: .leading, spacing: ZenSpace.s4) {
-            HStack(spacing: ZenSpace.s2) {
-                GeminiSpark()
+            HStack(spacing: ZenSpace.s3) {
                 Eyebrow(WeekCopy.reviewEyebrow)
                 Spacer()
-                if let (_, source) = model.review, !model.reviewLoading {
-                    Text(source == .gemini ? WeekCopy.reviewSourceGemini : WeekCopy.reviewSourceHere)
-                        .font(ZenFont.number(9.5)).tracking(0.8).foregroundStyle(Color.zen.textCaption)
-                }
+                if let (_, source) = model.review, !model.reviewLoading { SourceCredit(source: source) }
             }
             if let (review, _) = model.review, !model.reviewLoading {
-                Text(review.headline).font(ZenFont.brand(26)).tracking(-0.6).foregroundStyle(Color.zen.textHeading)
+                Text(review.headline).font(ZenFont.brand(30)).tracking(-0.7).foregroundStyle(Color.zen.textHeading)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(review.body).font(ZenFont.text(14.5)).lineSpacing(5).foregroundStyle(Color.zen.textBody)
+                    .accessibilityAddTraits(.isHeader)
+                Text(review.body).font(ZenFont.text(15)).lineSpacing(6).foregroundStyle(Color.zen.textBody)
+                    .frame(maxWidth: 640, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(alignment: .top, spacing: ZenSpace.s3) {
                     Image(systemName: "leaf").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.zen.textBrand)
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(Color.zen.surfaceTint))
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(Color.zen.surfaceRaised))
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 3) {
                         Eyebrow(WeekCopy.tryThis, color: Color.zen.textBrand)
-                        Text(review.experiment).font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
+                        Text(review.experiment).font(ZenFont.text(14.5, .semibold)).foregroundStyle(Color.zen.textHeading)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    Spacer(minLength: 0)
                 }
                 .padding(ZenSpace.s4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: ZenRadius.lg, style: .continuous).fill(Color.zen.surfaceTint.opacity(0.75)))
-                Button(WeekCopy.askAgain) { Task { await model.loadReview() } }.buttonStyle(ZenLinkButtonStyle())
+                .frame(maxWidth: 640, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: ZenRadius.lg, style: .continuous).fill(Color.zen.surfaceTint))
+                .accessibilityElement(children: .combine)
+                regenerate
             } else {
-                HStack(spacing: ZenSpace.s3) {
-                    ZenoView(.curious).frame(width: 56)
-                    VStack(alignment: .leading, spacing: ZenSpace.s2) {
-                        Text(WeekCopy.reviewLoading).font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
-                        LoadingCells()
-                    }
+                VStack(alignment: .leading, spacing: ZenSpace.s3) {
+                    Text(WeekCopy.reviewLoading).font(ZenFont.brand(24)).foregroundStyle(Color.zen.textHeading)
+                    LoadingCells()
                 }
                 .padding(.vertical, ZenSpace.s4)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(WeekCopy.reviewLoading)
+                regenerate
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .animation(ZenMotion.container, value: model.reviewLoading)
+    }
+
+    private var regenerate: some View {
+        Button { Task { await model.loadReview() } } label: {
+            Label(WeekCopy.regenerate, systemImage: "arrow.clockwise")
+        }
+        .buttonStyle(ZenSecondaryButtonStyle())
+        .disabled(model.reviewLoading)
+        .accessibilityHint(WeekCopy.regenerateHint)
+        .padding(.top, ZenSpace.s1)
     }
 }
 
-/// A press sinks a control a touch; nothing else moves.
-struct PressScale: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
+/// The review's picture: this week as light, lettered by day, with Zeno sitting in it wearing the
+/// week's feeling and the week's count on a tag.
+private struct ReviewArt: View {
+    let week: WeekProgress
+
+    var body: some View {
+        let state = WeekState(week)
+        WeekLight(days: week.days, wonOn: week.winningDayIndex, lastDay: week.todayIndex, seed: 47, showsDays: true)
+            .overlay(alignment: .topLeading) {
+                Text("THIS WEEK · \(week.goodDays) OF 4")
+                    .font(ZenFont.number(10)).tracking(0.9).foregroundStyle(Color.zen.textHeading)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Capsule().fill(Color.zen.surfaceRaised.opacity(0.9)))
+                    .padding(ZenSpace.s4)
+            }
+            .overlay(alignment: .topTrailing) {
+                ZenoView(state.feeling).frame(width: 76).padding(ZenSpace.s4)
+            }
+            .frame(minHeight: 300)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("This week so far: \(week.goodDays) of 4 good days")
+    }
+}
+
+/// The paper Zeno's read sits on: raised, opaque enough that every line reads the same over any
+/// backdrop, a hairline, Albeit's lift.
+struct WeekPaper: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: ZenRadius.xxxl, style: .continuous)
+        content
+            .background(shape.fill(Color.zen.surfaceRaised.opacity(0.94)))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Color.zen.borderHairline, lineWidth: 1))
+            .modifier(ZenLift())
     }
 }

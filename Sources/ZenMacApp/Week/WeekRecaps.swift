@@ -71,9 +71,15 @@ struct RecapEntry: Identifiable, Equatable, Sendable {
 
     var macTotal: Int { macMinutes.compactMap { $0 }.reduce(0, +) }
 
-    /// What VoiceOver reads for a cover.
+    /// The badge on a card: "Won · 9-week streak" or "3 of 4 good days".
+    var badge: String {
+        isWon ? "\(WeekCopy.won) · \(streakAfter)-week streak" : "\(goodDays) of 4 good days"
+    }
+
+    /// What VoiceOver reads for a card.
     var spoken: String {
-        "Week \(weekNumber), \(range): \(outcome)\(average.map { ", average \($0.text)" } ?? ""). \(headline)"
+        let score = average.map { "\(WeekCopy.scoreLabel) \(WeekCopy.scoreSublabel) \($0.text)" } ?? WeekCopy.noScores
+        return "Week \(weekNumber), \(range). \(headline). \(score). \(isWon ? badge : "Not won, \(badge)")."
     }
 }
 
@@ -100,9 +106,7 @@ enum RecapBook {
                 s.map { max(6, (100 - $0.tenths) * 2 + (i * 7 + n * 11) % 23 - (i >= 5 ? 20 : 0)) }
             }
             let pulls = scored.reduce(0) { $0 + ($1.1.isGoodDay ? 4 : 2) } + n % 3
-            let headline = week.isWon
-                ? "\(bestName)s set the pace"
-                : "\(lowName) was the hard day"
+            let headline = WeekPattern.headline(days: scores, wonOn: wonOn)
             let body = best.flatMap { b in low.map { l in
                 b.0 == l.0 ? "\(bestName) came in at \(b.1.text)."
                     : "\(bestName) was the calmest at \(b.1.text). \(lowName) dipped to \(l.1.text). \(week.goodDays) good days, an average of \(average?.text ?? "–")."
@@ -119,23 +123,13 @@ enum RecapBook {
     }
 }
 
-// MARK: - The cover art
+// MARK: - The light a recap is lit in
 
-/// The lights a recap cover can be lit in: Albeit's pattern tones, each with a night variant.
+/// The glow a recap's story is lit in, from the week's feeling: Albeit's green, mint, amber for a
+/// proud week, a dusk for a quiet one.
 enum RecapTone {
     case zen, mint, amber, twilight
 
-    /// Sky top and bottom on paper.
-    var day: (UInt32, UInt32) {
-        switch self {
-        case .zen: (0xD8ECD3, 0xFFF4D3)
-        case .mint: (0xE3F2E0, 0xFBFBF1)
-        case .amber: (0xFFE3A1, 0xFFF7E2)
-        case .twilight: (0xD9D6E4, 0xF9E6D6)
-        }
-    }
-
-    /// The glow behind Zeno, the same by day and night.
     var glow: UInt32 {
         switch self {
         case .zen, .mint: 0x5BDF62
@@ -143,166 +137,127 @@ enum RecapTone {
         case .twilight: 0xB7A8E0
         }
     }
-
-    /// The near and far hills.
-    var hills: (UInt32, UInt32) {
-        switch self {
-        case .zen: (0x9FD49A, 0xC6E6BF)
-        case .mint: (0xB8DDB4, 0xD6EDD1)
-        case .amber: (0xF2C25A, 0xF9DD97)
-        case .twilight: (0xB9B2CF, 0xD4CDE2)
-        }
-    }
 }
 
-/// A recap's cover: the week's light, a horizon, Zeno in the week's feeling, and a string of beads
-/// across the top, a marigold for every good day. Lit by day, a night sky in dark mode.
-struct RecapArt: View {
+// MARK: - A recap card
+
+/// A past week as a card: the week drawn as light from its own scores, how it went in one line,
+/// the week's average Zen Score with its name on it, and won or not with the streak. Lifts on
+/// hover, rings on keyboard focus, and opens the week over the page.
+struct RecapCard: View {
     let entry: RecapEntry
-    var zenoScale: CGFloat = 0.5
-    @Environment(\.colorScheme) private var scheme
+    let open: () -> Void
 
     var body: some View {
-        let tone = entry.tone
-        let dark = scheme == .dark
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            ZStack {
-                LinearGradient(colors: dark ? [Color(hex: 0x0B120C), Color(hex: 0x152218)] : [Color(hex: tone.day.0), Color(hex: tone.day.1)],
-                               startPoint: .top, endPoint: .bottom)
-                RadialGradient(colors: [Color(hex: tone.glow, alpha: dark ? 0.32 : 0.42), .clear],
-                               center: UnitPoint(x: 0.5, y: 0.62), startRadius: 0, endRadius: w * 0.62)
-                // The sun sits over the week's calmest day, Monday on the left.
-                if let best = entry.bestDay {
-                    Circle()
-                        .fill(RadialGradient(colors: [Color(hex: dark ? 0xF2F3EE : 0xFFF8E1), Color(hex: tone.glow, alpha: dark ? 0.5 : 0.75)],
-                                             center: .center, startRadius: 0, endRadius: w * 0.07))
-                        .frame(width: w * 0.13, height: w * 0.13)
-                        .shadow(color: Color(hex: tone.glow, alpha: 0.6), radius: 14)
-                        .position(x: w * (0.12 + 0.76 * (CGFloat(best) + 0.5) / 7), y: h * 0.5)
-                }
-                Hills(seed: entry.index, height: 0.36)
-                    .fill(Color(hex: dark ? 0x1C2A1E : tone.hills.1).opacity(dark ? 1 : 0.9))
-                Hills(seed: entry.index + 7, height: 0.24)
-                    .fill(Color(hex: dark ? 0x233526 : tone.hills.0))
-                BeadString(days: entry.days, wonOn: entry.wonOn)
-                    .frame(height: h * 0.2)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .padding(.horizontal, w * 0.08)
-                    .padding(.top, h * 0.05)
-                ZenoStill(entry.feeling)
-                    .frame(width: w * zenoScale)
-                    .position(x: w / 2, y: h * 0.6)
-            }
-        }
-        .accessibilityHidden(true)
+        Button(action: open) { RecapCardFace(entry: entry) }
+            .buttonStyle(RecapCardStyle())
+            .focusEffectDisabled()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(entry.spoken)
+            .accessibilityHint(WeekCopy.openRecapHint)
+            .accessibilityAddTraits(.isButton)
     }
 }
 
-/// Rolling hills, the lower `height` of the frame, shaped by a seed so every week is its own place.
-private struct Hills: Shape {
-    let seed: Int
-    let height: CGFloat
-
-    func path(in r: CGRect) -> Path {
-        let top = r.maxY - r.height * height
-        let a = CGFloat((seed * 37) % 17) / 17, b = CGFloat((seed * 53) % 13) / 13
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX, y: top + r.height * 0.06 * a))
-        p.addCurve(to: CGPoint(x: r.maxX, y: top + r.height * 0.05 * b),
-                   control1: CGPoint(x: r.width * (0.25 + 0.15 * b), y: top - r.height * 0.09),
-                   control2: CGPoint(x: r.width * (0.65 + 0.1 * a), y: top + r.height * 0.1))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
-        p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
-        p.closeSubpath()
-        return p
-    }
-}
-
-/// Seven beads on a sagging string: a marigold for a good day (the winning one deeper), a seed for
-/// a day under 6.0, a ring for no data.
-private struct BeadString: View {
-    let days: [ZenScore?]
-    let wonOn: Int?
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        // Seeds and rings sit on the sky: dark ink by day, pale ink at night.
-        let seedInk: UInt32 = scheme == .dark ? 0xE8EBE3 : 0x12160F
-        return Canvas { ctx, size in
-            let w = size.width, h = size.height
-            var rope = Path()
-            rope.move(to: CGPoint(x: 0, y: h * 0.15))
-            rope.addQuadCurve(to: CGPoint(x: w, y: h * 0.15), control: CGPoint(x: w / 2, y: h * 0.55))
-            ctx.stroke(rope, with: .color(Color(hex: 0x7A5A00, alpha: 0.45)), lineWidth: 1.2)
-            let r = min(w / 22, h * 0.26)
-            for i in 0..<7 {
-                let t = (CGFloat(i) + 0.5) / 7
-                let x = w * t, y = h * 0.15 + (h * 0.4) * 4 * t * (1 - t) * 0.5 + r * 1.2
-                let day = days.indices.contains(i) ? days[i] : nil
-                if day?.isGoodDay == true {
-                    let deep = i == wonOn
-                    for k in 0..<8 {
-                        var petal = ctx
-                        petal.translateBy(x: x, y: y)
-                        petal.rotate(by: .degrees(Double(k) * 45))
-                        petal.fill(Path(ellipseIn: CGRect(x: -r * 0.4, y: -r, width: r * 0.8, height: r)),
-                                   with: .color(deep ? Color(hex: 0xFF7A1A) : Color(hex: 0xFFB524)))
-                    }
-                    ctx.fill(Path(ellipseIn: CGRect(x: x - r * 0.32, y: y - r * 0.32, width: r * 0.64, height: r * 0.64)), with: .color(Color(hex: 0xB45A00)))
-                } else if day != nil {
-                    ctx.fill(Path(ellipseIn: CGRect(x: x - r * 0.5, y: y - r * 0.5, width: r, height: r)), with: .color(Color(hex: seedInk, alpha: 0.22)))
-                } else {
-                    ctx.stroke(Path(ellipseIn: CGRect(x: x - r * 0.5, y: y - r * 0.5, width: r, height: r)), with: .color(Color(hex: seedInk, alpha: 0.3)), lineWidth: 1)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - A recap thumbnail
-
-/// A recap as a moment: the art on top, then the week, its outcome and its average. Calm on paper,
-/// a quiet lift on hover.
-struct RecapThumb: View {
+/// The card's face, drawn the same in every state; the style adds the lift and the ring.
+private struct RecapCardFace: View {
     let entry: RecapEntry
-    var isSelected = false
-    @State private var hovering = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
-            RecapArt(entry: entry)
-                .aspectRatio(5 / 4, contentMode: .fit)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("WEEK \(entry.weekNumber)").font(ZenFont.number(9.5)).tracking(0.9).foregroundStyle(Color.zen.textCaption)
-                    Spacer()
-                    Text(entry.average?.text ?? "–").font(ZenFont.number(15)).foregroundStyle(Color.zen.textHeading)
+            WeekLight(days: entry.days, wonOn: entry.wonOn, seed: entry.index)
+                .frame(height: 136)
+                .overlay(alignment: .topLeading) {
+                    Text("WEEK \(entry.weekNumber)")
+                        .font(ZenFont.number(9.5)).tracking(0.9).foregroundStyle(Color.zen.textHeading)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Capsule().fill(Color.zen.surfaceRaised.opacity(0.9)))
+                        .padding(ZenSpace.s3)
                 }
-                Text(entry.outcome).font(ZenFont.text(13.5, .semibold))
-                    .foregroundStyle(entry.isWon ? Color.zen.accentRewardText : Color.zen.textHeading)
-                    .lineLimit(1)
-                Text(entry.range).font(ZenFont.text(11.5)).foregroundStyle(Color.zen.textCaption)
+            VStack(alignment: .leading, spacing: ZenSpace.s3) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(entry.range.uppercased()).font(ZenFont.number(10)).tracking(0.8).foregroundStyle(Color.zen.textCaption)
+                    Text(entry.headline).font(ZenFont.text(16, .semibold)).foregroundStyle(Color.zen.textHeading)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                }
+                Rectangle().fill(Color.zen.borderHairline).frame(height: 1)
+                HStack(alignment: .bottom, spacing: ZenSpace.s2) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(WeekCopy.scoreLabel).font(ZenFont.text(11.5, .semibold)).foregroundStyle(Color.zen.textBody)
+                        Text(WeekCopy.scoreSublabel).font(ZenFont.text(11.5)).foregroundStyle(Color.zen.textCaption)
+                    }
+                    Spacer(minLength: 0)
+                    Text(entry.average?.text ?? "–").font(ZenFont.number(30)).foregroundStyle(Color.zen.textHeading)
+                        .lineLimit(1).fixedSize()
+                }
+                RecapOutcomeBadge(entry: entry)
             }
-            .padding(.horizontal, ZenSpace.s3 + 2).padding(.vertical, ZenSpace.s3)
+            .padding(ZenSpace.s4)
         }
-        .background(shape.fill(Color.zen.surfaceCard.opacity(0.85)))
-        .clipShape(shape)
-        .overlay(shape.strokeBorder(isSelected ? Color.zen.textBrand : Color.zen.borderHairline, lineWidth: isSelected ? 2 : 1))
-        .modifier(ZenLift())
-        .offset(y: hovering ? -3 : 0)
-        .animation(ZenMotion.calm(ZenMotion.t2), value: hovering)
-        .onHover { hovering = $0 }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(entry.spoken)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// Won (amber, a seal, the streak) or not (quiet, the good days it reached). Words carry it; the
+/// colour only agrees.
+struct RecapOutcomeBadge: View {
+    let entry: RecapEntry
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: entry.isWon ? "checkmark.seal.fill" : "circle.dashed").font(.system(size: 11, weight: .semibold))
+                .accessibilityHidden(true)
+            Text(entry.badge).font(ZenFont.text(12, .semibold)).lineLimit(1)
+        }
+        .foregroundStyle(entry.isWon ? Color.zen.accentRewardText : Color.zen.textBody)
+        .padding(.horizontal, 9).frame(height: 24)
+        .background(Capsule().fill(entry.isWon ? Color.zen.accentRewardTint : Color.zen.surfaceSunk))
+        .overlay(Capsule().strokeBorder(entry.isWon ? Color.zen.accentReward.opacity(0.55) : Color.zen.borderOutline, lineWidth: 1))
+    }
+}
+
+/// The card's states: a lift and a deeper shadow on hover, a sink on press, a brand ring on
+/// keyboard focus. Reduce Motion keeps the shadow and drops the movement.
+private struct RecapCardStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
+
+    private struct Styled: View {
+        let configuration: Configuration
+        @Environment(\.isFocused) private var focused
+        @Environment(\.colorScheme) private var scheme
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @State private var hovering = false
+
+        var body: some View {
+            let shape = RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous)
+            let dark = scheme == .dark
+            let lifted = hovering || focused
+            configuration.label
+                .background(shape.fill(Color.zen.surfaceRaised))
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(lifted ? Color.zen.borderOutline : Color.zen.borderHairline, lineWidth: 1))
+                .shadow(color: Color(hex: 0x12160F, alpha: dark ? 0.3 : 0.06), radius: 1.5, y: 1)
+                .shadow(color: Color(hex: 0x12160F, alpha: lifted ? (dark ? 0.55 : 0.16) : (dark ? 0.22 : 0.06)),
+                        radius: lifted ? 26 : 18, y: lifted ? 16 : 10)
+                .overlay {
+                    if focused {
+                        RoundedRectangle(cornerRadius: ZenRadius.xl + 4, style: .continuous)
+                            .strokeBorder(Color.zen.textBrand, lineWidth: 2.5)
+                            .padding(-5)
+                    }
+                }
+                .offset(y: lifted && !reduceMotion ? -4 : 0)
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+                .animation(ZenMotion.calm(ZenMotion.t2), value: lifted)
+                .animation(ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
+                .onHover { hovering = $0 }
+                .contentShape(shape)
+        }
     }
 }
 
 // MARK: - The footer on Week
 
-/// The latest recaps as moments, with View all.
+/// The latest recaps as cards, with View all. A card opens its week over the page.
 struct PastRecapsFooter: View {
     let entries: [RecapEntry]
     let open: (RecapEntry?) -> Void
@@ -328,8 +283,8 @@ struct PastRecapsFooter: View {
             } else {
                 HStack(alignment: .top, spacing: ZenSpace.s4) {
                     ForEach(entries.prefix(4)) { entry in
-                        Button { open(entry) } label: { RecapThumb(entry: entry) }
-                            .buttonStyle(PressScale())
+                        RecapCard(entry: entry) { open(entry) }
+                            .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -339,24 +294,30 @@ struct PastRecapsFooter: View {
 
 // MARK: - Sharing
 
-/// A recap as a picture to share, Flow 07's story card: the week's art, the average, the beads.
-/// Scores only.
+/// A recap as a picture to share, Flow 07's story card: the week as light, Zeno in its feeling,
+/// the average and how the week went. Scores only.
 struct RecapShareImage: View {
     let entry: RecapEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            RecapArt(entry: entry, zenoScale: 0.42)
+            WeekLight(days: entry.days, wonOn: entry.wonOn, seed: entry.index, showsDays: true)
                 .frame(height: 330)
-                .environment(\.colorScheme, .light)
+                .overlay(alignment: .topTrailing) {
+                    ZenoStill(entry.feeling).frame(width: 96).padding(ZenSpace.s6)
+                }
+                .environment(\.colorScheme, .dark)
             VStack(alignment: .leading, spacing: ZenSpace.s3) {
                 Text("ZENMODE OS · WEEK \(entry.weekNumber) · \(entry.range.uppercased())")
                     .font(ZenFont.number(11)).tracking(1.1).foregroundStyle(Ink.caption)
                 Text(WeekCopy.coverTitle).font(ZenFont.brand(36)).foregroundStyle(Ink.text)
                 HStack(alignment: .firstTextBaseline, spacing: ZenSpace.s3) {
                     Text(entry.average?.text ?? "–").font(ZenFont.number(72)).foregroundStyle(entry.isWon ? Ink.gold : Ink.text)
-                    Text(entry.isWon ? "\(entry.outcome) · \(entry.streakAfter)-week streak" : entry.outcome)
-                        .font(ZenFont.text(16, .semibold)).foregroundStyle(Ink.body)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.headline).font(ZenFont.text(17, .semibold)).foregroundStyle(Ink.text)
+                        Text("\(WeekCopy.scoreLabel) · \(WeekCopy.scoreSublabel) · \(entry.badge)")
+                            .font(ZenFont.text(13)).foregroundStyle(Ink.body)
+                    }
                 }
                 Spacer()
                 Text("zenmodeos.com").font(ZenFont.number(12)).foregroundStyle(Ink.mono)

@@ -26,17 +26,19 @@ enum WeekCopy {
 
     static let exploreTitle = "Zeno's read of your week"
     static let reviewEyebrow = "Weekly review"
-    static let reviewSourceGemini = "GEMINI"
-    static let reviewSourceHere = "WRITTEN HERE"
+    /// Gemini is credited only when Gemini wrote the words.
+    static let fromGemini = "Zeno · Gemini"
+    static let fromNumbers = "Written from your numbers"
     static let reviewLoading = "Zeno's reading your week…"
     static let tryThis = "Try this week"
-    static let askAgain = "Write it again"
+    static let regenerate = "Regenerate"
+    static let regenerateHint = "Writes this week's review again from your scores"
     static let askEyebrow = "Ask about your week"
-    static let askHint = "Gemini answers from your scores"
+    static let askLede = "Answers come from your scores and this Mac's minutes, never from your apps or your iPhone's time."
+    static let askHint = "Zeno answers from your scores"
     static let askThinking = "Zeno's thinking…"
-    static let askEmpty = "Pick a question. Answers come from your scores and this Mac's minutes, never from your apps or your iPhone's time."
-    static let askFromGemini = "Gemini · from your scores only"
-    static let askFromHere = "Written on this Mac, from your scores"
+    static let askEmpty = "Pick a question and the answer lands here."
+    static let youAsked = "You asked"
     static let askFallback = "I can't read the week right now. Your scores are safe; ask again in a moment."
 
     static let recapsTitle = "Past recaps"
@@ -47,12 +49,17 @@ enum WeekCopy {
     static let noScores = "No scores that week."
     static let noMatches = "No weeks to show here yet."
     static let recapsPageTitle = "Recaps"
-    static let recapsPageLede = "Every week on record. Pick one to play its story."
+    static let recapsPageLede = "Every week on record. Open one to play its story."
+    static let scoreLabel = "Zen Score"
+    static let scoreSublabel = "week average"
+    static let openRecapHint = "Opens this week's recap over the page"
+    static let closeRecap = "Close recap"
+    static let olderWeek = "Older week"
+    static let newerWeek = "Newer week"
     static let backToWeek = "Week"
     static let backHint = "Back to Week"
     static let coverTitle = "Your week in Zen"
     static let won = "Won"
-    static let avg = "AVG"
     static let average = "Average"
     static let tryNext = "Try next week"
     static let shareWeek = "Share this week"
@@ -84,41 +91,55 @@ enum WeekCopy {
 }
 
 /// Week: this week and the streak, Zeno's read of it, and the recaps of past weeks, with every
-/// week on record (and its story) a page away.
+/// week on record a page away. A recap opens over whichever page it was picked on.
 struct WeekView: View {
     enum Page: Equatable { case week, recaps }
 
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: Page = .week
-    @State private var selectedRecap: Date?
+    /// The recap open over the page, by its Monday.
+    @State private var openRecap: Date?
     @State private var ask = WeekAskModel()
 
     var body: some View {
         let entries = model.streak.map(RecapBook.entries(from:)) ?? []
+        let overlaid = openRecap != nil
         ZStack {
-            switch page {
-            case .week:
-                WeekPage(ask: ask, entries: entries) { entry in
-                    selectedRecap = entry?.id
-                    page = .recaps
-                }
-                .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
-            case .recaps:
-                RecapsPage(entries: entries, streak: model.streak, selected: $selectedRecap) { page = .week }
+            Group {
+                switch page {
+                case .week:
+                    WeekPage(ask: ask, entries: entries) { entry in
+                        if let entry { openRecap = entry.id } else { page = .recaps }
+                    }
+                    .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
+                case .recaps:
+                    RecapsPage(entries: entries, streak: model.streak, open: { openRecap = $0.id }) {
+                        if overlaid { openRecap = nil } else { page = .week }
+                    }
                     .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
+                }
+            }
+            // Under an open recap the page steps back: blurred, out of reach of the pointer, the
+            // keyboard and VoiceOver.
+            .blur(radius: overlaid ? 6 : 0)
+            .disabled(overlaid)
+            .accessibilityHidden(overlaid)
+            if overlaid {
+                RecapOverlay(entries: entries, openID: $openRecap)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.97)))
+                    .zIndex(1)
             }
         }
         .animation(ZenMotion.container, value: page)
+        .animation(ZenMotion.container, value: overlaid)
         #if DEBUG
-        // Debug renders: ZEN_WEEK_PAGE=recaps opens Recaps (ZEN_WEEK_RECAP=n picks the nth newest);
-        // ZEN_WEEK_ASK=0…3 asks a question.
+        // Debug renders: ZEN_WEEK_PAGE=recaps opens Recaps; ZEN_WEEK_RECAP=n opens the nth newest
+        // recap over the page; ZEN_WEEK_ASK=0…3 asks a question.
         .onAppear {
             let env = ProcessInfo.processInfo.environment
-            if env["ZEN_WEEK_PAGE"] == "recaps" {
-                page = .recaps
-                if let n = env["ZEN_WEEK_RECAP"].flatMap(Int.init), entries.indices.contains(n) { selectedRecap = entries[n].id }
-            }
+            if env["ZEN_WEEK_PAGE"] == "recaps" { page = .recaps }
+            if let n = env["ZEN_WEEK_RECAP"].flatMap(Int.init), entries.indices.contains(n) { openRecap = entries[n].id }
             if let i = env["ZEN_WEEK_ASK"].flatMap(Int.init), WeekPrompt.all.indices.contains(i) {
                 ask.ask(WeekPrompt.all[i], recap: WeekDemo.recap, reduceMotion: true)
             }

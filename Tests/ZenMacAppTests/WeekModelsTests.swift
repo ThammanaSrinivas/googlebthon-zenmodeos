@@ -206,3 +206,48 @@ struct ResilientReviewsTests {
         }
     }
 }
+
+@Suite("Week: a recap's one-line pattern")
+struct WeekPatternTests {
+    private func line(_ tenths: [Int?]) -> String {
+        let days = tenths.map { $0.map(ZenScore.init(tenths:)) }
+        let progress = WeekProgress(days: days, todayIndex: nil, streakBefore: 0)
+        return WeekPattern.headline(days: days, wonOn: progress.winningDayIndex)
+    }
+
+    @Test("A won week says when it was won")
+    func won() {
+        #expect(line([70, 72, 68, 75, 50, 40, nil]) == "Won by Thursday")
+        #expect(line([70, 50, 68, 75, 66, 40, nil]) == "Won on Friday")
+        #expect(line([70, 50, 68, 55, 50, 66, 64]) == "Sealed on Sunday")
+        #expect(line([70, 72, 68, 75, 66, 64, 61]) == "Seven good days of seven")
+    }
+
+    @Test("A week that wasn't won says the shape it took")
+    func shapes() {
+        #expect(line([70, 72, 68, 50, 40, 45, 50]) == "One good day short")
+        #expect(line([66, 58, 59, 50, 42, 44, 40]) == "Strong start, slow finish")
+        #expect(line([40, 44, 42, 50, 58, 59, 66]) == "Slow start, strong finish")
+        #expect(line([55, 56, 54, 55, 56, 50, 41]) == "Calm weekdays, busy weekend")
+        #expect(line([55, 56, 54, 55, 56, 55, 54]) == "Steady all week")
+        #expect(line([55, 58, 40, 57, 55, 59, 57]) == "Wednesday pulled it down")
+    }
+
+    @Test("Too few scores is a quiet week, never a zero")
+    func quiet() {
+        #expect(line([nil, 70, nil, nil, 50, nil, nil]) == "A quiet week on record")
+        #expect(line([nil, nil, nil, nil, nil, nil, nil]) == "A quiet week on record")
+    }
+
+    @Test("Recaps carry the pattern, the labelled average and the streak in what VoiceOver reads")
+    func spoken() throws {
+        let today = nov(20, 15)
+        let cal = StreakCalendar(records: WeekDemo.history(today: today, calendar: india), today: today, calendar: india)
+        let entries = RecapBook.entries(from: cal)
+        let latest = try #require(entries.first)
+        #expect(latest.isWon && latest.streakAfter == 9)
+        #expect(latest.headline == WeekPattern.headline(days: latest.days, wonOn: latest.wonOn))
+        #expect(latest.spoken.contains("Zen Score week average"))
+        #expect(latest.spoken.contains("9-week streak"))
+    }
+}
