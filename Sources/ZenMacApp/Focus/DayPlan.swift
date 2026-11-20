@@ -161,15 +161,24 @@ struct DayPlanCard: View {
                         Image(systemName: t.done ? "checkmark.circle.fill" : "circle")
                             .foregroundStyle(t.done ? Color.zen.textBrand : Color.zen.textCaption)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(QuietIconButtonStyle())
                     .accessibilityLabel(t.done ? "Mark \(t.title) not done" : "Mark \(t.title) done")
                     Text(t.title).font(ZenFont.text(14)).foregroundStyle(t.done ? Color.zen.textCaption : Color.zen.textHeading)
                         .strikethrough(t.done)
                     Spacer(minLength: 0)
                     Button { p.remove(t.id) } label: { Image(systemName: "xmark").font(.system(size: 10)) }
-                        .buttonStyle(.plain).foregroundStyle(Color.zen.textCaption)
+                        .buttonStyle(QuietIconButtonStyle()).foregroundStyle(Color.zen.textCaption)
                         .accessibilityLabel("Remove \(t.title)")
                 }
+            }
+            if p.tasks.isEmpty && p.state == .idle {
+                HStack(alignment: .top, spacing: ZenSpace.s3) {
+                    Image(systemName: "list.bullet.rectangle").font(.system(size: 15)).foregroundStyle(Color.zen.textBrand)
+                    Text("Add what's on today. Zeno picks the three that matter and finds focus blocks between your meetings.")
+                        .font(ZenFont.text(13)).foregroundStyle(Color.zen.textBody)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.bottom, ZenSpace.s1)
             }
             TextField("Add a task, then press Return", text: $draft)
                 .textFieldStyle(.roundedBorder)

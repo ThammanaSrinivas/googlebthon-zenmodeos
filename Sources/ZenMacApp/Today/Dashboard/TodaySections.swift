@@ -78,3 +78,26 @@ extension TodaySectionHeader where Accessory == EmptyView {
         self.init(section) { EmptyView() }
     }
 }
+
+/// A small icon-only button (close, tick, remove): a soft disc on hover, a press dip, a 28-pt target.
+struct QuietIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        QuietIconBody(configuration: configuration)
+    }
+
+    private struct QuietIconBody: View {
+        let configuration: ButtonStyleConfiguration
+        @State private var hovering = false
+
+        var body: some View {
+            configuration.label
+                .frame(minWidth: 28, minHeight: 28)
+                .background(Circle().fill(Color.zen.textHeading.opacity(hovering ? 0.08 : 0)))
+                .scaleEffect(configuration.isPressed ? 0.92 : 1)
+                .contentShape(Circle())
+                .onHover { hovering = $0 }
+                .animation(ZenMotion.calm(ZenMotion.t1), value: hovering)
+                .animation(ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
+        }
+    }
+}

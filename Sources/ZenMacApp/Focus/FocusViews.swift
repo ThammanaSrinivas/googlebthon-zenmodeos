@@ -49,6 +49,12 @@ struct FocusCard: View {
         }
     }
 
+    /// The catch-up card below is asking for its tap: it holds Now's one primary action.
+    private var catchUpWaiting: Bool {
+        if case .waiting = model.catchUp.state { return true }
+        return false
+    }
+
     private var idle: some View {
         let until = FocusModel.suggestedUntil()
         return VStack(alignment: .leading, spacing: ZenSpace.s3) {
@@ -63,7 +69,7 @@ struct FocusCard: View {
                         .accessibilityLabel("Focus for \(m) minutes")
                 }
                 Button(FocusCopy.untilLabel(until)) { model.startFocus(until: until) }
-                    .buttonStyle(ZenPrimaryButtonStyle())
+                    .buttonStyle(catchUpWaiting ? AnyButtonStyle(ZenSecondaryButtonStyle()) : AnyButtonStyle(ZenPrimaryButtonStyle()))
                     .accessibilityLabel("Focus until \(FocusClock.text(until))")
             }
         }

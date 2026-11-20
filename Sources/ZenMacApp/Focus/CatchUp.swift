@@ -151,7 +151,7 @@ struct CatchUpCardView: View {
                     if c.state == .ready { Text(c.fromGemini ? "Zeno · Gemini" : "Zeno").zenType(.caption).foregroundStyle(Color.zen.textCaption) }
                     Spacer(minLength: 0)
                     Button { c.dismiss() } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)) }
-                        .buttonStyle(.plain).foregroundStyle(Color.zen.textCaption)
+                        .buttonStyle(QuietIconButtonStyle()).foregroundStyle(Color.zen.textCaption)
                         .accessibilityLabel("Close catch-up")
                 }
                 content(c)
@@ -238,13 +238,14 @@ private struct CatchUpRow: View {
                     .accessibilityLabel("Draft reply to \(card.message.fromLabel)")
                 HStack(spacing: ZenSpace.s2) {
                     Button(card.status == .sending ? "Sending…" : CatchUpCopy.send) { Task { await c.approve(card.id) } }
-                        .buttonStyle(ZenPrimaryButtonStyle())
+                        .buttonStyle(ZenSecondaryButtonStyle())
                         .disabled(card.status == .sending || card.draft.trimmingCharacters(in: .whitespaces).isEmpty)
                     if let next = model.afterHours.nextWorkStart(), model.afterHours.isAfterHours() {
                         Button(CatchUpCopy.sendAt(FocusClock.text(next))) { Task { await c.approve(card.id, at: next) } }
                             .buttonStyle(ZenSecondaryButtonStyle())
                     }
                     Button(CatchUpCopy.skip) { c.skip(card.id) }.buttonStyle(ZenLinkButtonStyle())
+                        .accessibilityLabel("Skip the message from \(card.message.fromLabel)")
                     if case .failed(let why) = card.status { Text(why).zenType(.caption).foregroundStyle(Color.zen.scoreDeduct) }
                 }
             }

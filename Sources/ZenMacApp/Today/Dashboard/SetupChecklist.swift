@@ -340,6 +340,8 @@ private struct BloomPreview: View {
                             .clipShape(RoundedRectangle(cornerRadius: ZenRadius.widget, style: .continuous))
                             .animation(ZenMotion.calm(ZenMotion.t3), value: fraction)
                     }
+                    .overlay(RoundedRectangle(cornerRadius: ZenRadius.widget, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
             }
             .frame(width: 208, height: 208)
             .modifier(HoverTilt(glow: Color.zen.brandSoft, maxAngle: 8))

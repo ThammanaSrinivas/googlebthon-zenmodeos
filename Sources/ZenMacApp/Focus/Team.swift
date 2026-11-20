@@ -146,7 +146,7 @@ struct TeamCard: View {
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(join)
                 .accessibilityLabel("Team join link or code")
-            Button("Join", action: join).buttonStyle(ZenPrimaryButtonStyle())
+            Button("Join", action: join).buttonStyle(ZenSecondaryButtonStyle())
                 .disabled(joinText.trimmingCharacters(in: .whitespaces).isEmpty)
         }
     }
@@ -175,7 +175,7 @@ struct TeamCard: View {
                     .onSubmit { Task { await model.team.ask(question, work: model.services.work) } }
                     .accessibilityLabel("Question for Zeno about the team's notes")
                 Button(model.team.ask == .asking ? "Asking…" : "Ask") { Task { await model.team.ask(question, work: model.services.work) } }
-                    .buttonStyle(ZenPrimaryButtonStyle())
+                    .buttonStyle(ZenSecondaryButtonStyle())
                     .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || model.team.ask == .asking)
             }
             switch model.team.ask {
@@ -224,7 +224,7 @@ struct TeamCard: View {
             Spacer(minLength: 0)
             if case .claimed = model.team.claim {} else if keptDays >= 5 {
                 Button(model.team.claim == .claiming ? "Claiming…" : "Claim") { Task { await model.team.claimGold(model.services.team) } }
-                    .buttonStyle(ZenPrimaryButtonStyle())
+                    .buttonStyle(ZenSecondaryButtonStyle())
             }
         }
         .padding(ZenSpace.s3)

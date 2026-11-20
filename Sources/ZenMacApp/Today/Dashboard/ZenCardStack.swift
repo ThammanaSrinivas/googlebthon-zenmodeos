@@ -31,7 +31,7 @@ enum ZenCardLabels {
     /// The tilt of each card in the stack, back to front would read −6°, 3°, −2°; index 0 is the top.
     static let angles: [Double] = [-2, 3, -6, 5]
     /// Fanned on hover: the same leans, opened up.
-    static let fanAngles: [Double] = [-1, 7, -11, 12]
+    static let fanAngles: [Double] = [-1, 8, -10, 12]
 
     /// The stack's order when `front` is on top: front, then the ones after it, wrapping.
     static func order(count: Int, front: Int) -> [Int] {
@@ -77,7 +77,7 @@ struct ZenCardStackCard: View {
                     .accessibilityAddTraits(.isHeader)
                 if isSample { DemoTag("Samples") }
                 Spacer(minLength: 0)
-                Eyebrow("From your evenings with Zeno").lineLimit(1)
+                Eyebrow("Made with Zeno").lineLimit(1)
             }
             if cards == nil && !isSample {
                 ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -123,8 +123,9 @@ struct ZenCardStackCard: View {
                 ForEach(Array(order.enumerated()).reversed(), id: \.element) { depth, i in
                     let fan = hovering && !reduceMotion
                     let angle = (fan ? ZenCardLabels.fanAngles : ZenCardLabels.angles)[min(depth, 3)]
-                    let dx: CGFloat = fan ? [0, 46, -46, 70][min(depth, 3)] : [0, 8, -6, 12][min(depth, 3)]
-                    let dy: CGFloat = fan ? [-6, 10, 14, 18][min(depth, 3)] : [0, 6, 10, 14][min(depth, 3)]
+                    // The cards behind peek out above the top one, each its own way.
+                    let dx: CGFloat = fan ? [0, 62, -62, 84][min(depth, 3)] : [0, 18, -16, 24][min(depth, 3)]
+                    let dy: CGFloat = fan ? [14, -8, -4, -12][min(depth, 3)] : [10, -8, -20, -26][min(depth, 3)]
                     ZenCardFace(card: showing[i], isTop: depth == 0)
                         .rotationEffect(.degrees(angle))
                         .offset(x: dx, y: dy)
@@ -257,6 +258,12 @@ struct ZenCardFace: View {
                 RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous).fill(Color.zen.surfaceRaised)
                 RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous)
                     .fill(RadialGradient(colors: [glow.opacity(dark ? 0.16 : 0.2), .clear], center: .topLeading, startRadius: 0, endRadius: 220))
+            }
+        }
+        // The cards underneath read as paper, not as a second note to read.
+        .overlay {
+            if !isTop {
+                RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous).fill(Color.zen.surfaceRaised.opacity(0.62))
             }
         }
         .overlay(RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous)
