@@ -157,13 +157,13 @@ struct DashboardView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Search")
-            // The screen's one primary action.
+            // Secondary: the screen's one primary is Focus ("Lock in. Log off.").
             ShareImageButton(fileName: "Today · ZenMode OS.png") {
                 ImageExport.png(TodayShareImage(score: dash.days[0].score, week: model.snapshot?.week ?? FakeSnapshot.value.week, date: Date()))
             } label: {
                 Label("Share today", systemImage: "square.and.arrow.up")
             }
-            .buttonStyle(ZenPrimaryButtonStyle())
+            .buttonStyle(ZenSecondaryButtonStyle())
             .help("Share today's Zen Score and week as a picture. Scores only.")
         }
     }

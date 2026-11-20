@@ -90,7 +90,6 @@ struct CohortTab: View {
     private var digest: some View {
         VStack(alignment: .leading, spacing: ZenSpace.s3) {
             HStack(alignment: .center, spacing: ZenSpace.s2) {
-                GeminiSpark()
                 Eyebrow(CircleCopy.digestEyebrow).lineLimit(1)
                 Spacer(minLength: ZenSpace.s2)
                 DemoTag()

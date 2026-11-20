@@ -137,12 +137,13 @@ struct DayPlanCard: View {
                 Button(p.state == .planning ? "Planning…" : "Plan my day") {
                     Task { await model.planMyDay() }
                 }
-                .buttonStyle(model.wrapUpOffered ? AnyButtonStyle(ZenSecondaryButtonStyle()) : AnyButtonStyle(ZenPrimaryButtonStyle()))
+                // Secondary: Focus is Today's one primary action.
+                .buttonStyle(model.wrapUpOffered ? AnyButtonStyle(ZenLinkButtonStyle()) : AnyButtonStyle(ZenSecondaryButtonStyle()))
                 .disabled(p.state == .planning)
                 Button(p.state == .wrapping ? "Wrapping up…" : "Wrap up") {
                     Task { await model.wrapUpDay() }
                 }
-                .buttonStyle(model.wrapUpOffered ? AnyButtonStyle(ZenPrimaryButtonStyle()) : AnyButtonStyle(ZenSecondaryButtonStyle()))
+                .buttonStyle(model.wrapUpOffered ? AnyButtonStyle(ZenSecondaryButtonStyle()) : AnyButtonStyle(ZenLinkButtonStyle()))
                 .disabled(p.state == .wrapping)
             }
             if p.state == .planned, let plan = p.plan { planView(plan, p) }
