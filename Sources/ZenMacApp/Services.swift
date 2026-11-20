@@ -13,23 +13,31 @@ public struct Services: Sendable {
     public let scores: any ScoreService
     /// Where this Mac's day goes once someone is signed in.
     public let days: any DaySyncService
+    /// Single-use Live tokens for Zeno's voice (Gemini Live); the key never reaches the app.
+    public let voiceTokens: any VoiceTokenService
+    /// Zen Cards Zeno makes in conversation.
+    public let cards: any ZenCardService
     /// True when the fakes are wired; every surface showing their data says "Demo data".
     public let isDemo: Bool
 
     public init(auth: any AuthService, nudges: any ZenoNudgeService, cohorts: any CohortService,
-                scores: any ScoreService, days: any DaySyncService, isDemo: Bool) {
+                scores: any ScoreService, days: any DaySyncService,
+                voiceTokens: any VoiceTokenService, cards: any ZenCardService, isDemo: Bool) {
         self.auth = auth
         self.nudges = ResilientNudges(nudges)
         self.cohorts = cohorts
         self.scores = scores
         self.days = days
+        self.voiceTokens = voiceTokens
+        self.cards = cards
         self.isDemo = isDemo
     }
 
     /// The fakes: the open-source build, `swift run`, and ZEN_USE_MOCK=1.
     public static func fakes() -> Services {
         Services(auth: FakeAuth(approvalDelay: .seconds(30)), nudges: FakeNudges(), cohorts: FakeCohorts(),
-                 scores: FakeScores(), days: FakeSync.demo(), isDemo: true)
+                 scores: FakeScores(), days: FakeSync.demo(), voiceTokens: FakeVoiceTokens(), cards: FakeZenCards(),
+                 isDemo: true)
     }
 }
 

@@ -24,6 +24,8 @@
 	<string>public.app-category.productivity</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Zeno goes quiet during your classes and meetings, and gives you a heads-up before they start. Events stay on this Mac.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Zeno listens when you tap it, so you can say what you picked up the phone for. Audio goes to Google Gemini for the reply and isn&apos;t stored.</string>
 	<key>NSAppSleepDisabled</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>

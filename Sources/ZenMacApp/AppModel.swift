@@ -2,6 +2,7 @@ import SwiftUI
 import Albeit
 import ZenAPI
 import MacUsage
+import ZenVoice
 
 /// The app's state. Views read this and call its intents; they never see a service.
 @MainActor
@@ -43,6 +44,7 @@ final class AppModel {
 
     func start() {
         services = ZenMacBackend.make()
+        makeVoice()
         AppNap.holdOff()
         frontmost.start()
         Task {
@@ -348,7 +350,7 @@ final class AppModel {
     func startDaySync() {
         guard daySync == nil else { daySync?.flush(); return }
         let monitor = MacUsageMonitor()
-        let sync = MacDaySync(days: services.days, builder: ComputerDayReportBuilder(store: UserDefaultsKeyValueStore()), clock: SystemClock())
+        let sync = MacDaySync(days: services.days, builder: ComputerDayReportBuilder(store: MacUsage.UserDefaultsKeyValueStore()), clock: SystemClock())
         monitor.start()
         monitor.publish(to: sync)
         usage = monitor
@@ -377,20 +379,11 @@ final class AppModel {
     // MARK: Zen Gold
 
     let goldLedger = GoldLedger()
-    /// The live GOLDBEES quote, once one arrives. Never a placeholder.
-    private(set) var goldQuote: GoldQuote?
-    // TODO(buildathon): the live quote through the private package; until then Invest waits for it.
-    private let goldQuotes: any GoldQuoteService = NoQuotes()
-
     /// Gold pay is open on a won week, and for the whole week after one.
     var goldGate: GoldGate {
         let week = (snapshot ?? FakeSnapshot.value).week
         let finished = streak?.weeks.filter { !$0.isCurrent } ?? []
         return GoldGate(thisWeek: week, lastWeekWon: finished.last?.isWon ?? false)
-    }
-
-    func refreshGoldQuote() async {
-        goldQuote = await goldQuotes.latest()
     }
 
     func recordGoldOrder(units: Int, quote: GoldQuote) {
@@ -400,10 +393,28 @@ final class AppModel {
         goldLedger.record(units: units, pricePaise: quote.lastPaise, week: monday)
     }
 
+    // MARK: Zeno's voice
+
+    /// Intents and focus sessions Zeno sets in conversation, kept on this Mac for the app's life.
+    let voiceLedger = OnDeviceLedger(store: ZenVoice.UserDefaultsKeyValueStore())
+    /// Zeno's voice: Gemini Live with the mic on the real backend; the five-moment demo on fakes,
+    /// labelled Demo wherever it shows.
+    private(set) var voice: VoiceModel?
+
+    private func makeVoice() {
+        let name = user?.firstName ?? "there"
+        voice = services.isDemo
+            ? VoiceModel.demo(scores: services.scores, cards: services.cards, userName: name)
+            : VoiceModel(tokens: services.voiceTokens, scores: services.scores, cards: services.cards,
+                         ledger: voiceLedger, userName: name, audio: AVAudioVoiceIO())
+    }
+
     // MARK: Navigation
 
     /// A card asking to open a section of the sidebar (Today's Gold and month cards use it).
     var navigate: TodayView.Section?
+    /// The ⌘K command palette is open.
+    var paletteOpen = false
 
     // MARK: Settings
 

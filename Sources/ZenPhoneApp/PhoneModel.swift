@@ -11,17 +11,23 @@ public struct PhoneServices: Sendable {
     public let auth: any AuthService
     public let scores: any ScoreService
     public let days: any DaySyncService
+    public let voiceTokens: any VoiceTokenService
+    public let cards: any ZenCardService
     public let isDemo: Bool
 
-    public init(auth: any AuthService, scores: any ScoreService, days: any DaySyncService, isDemo: Bool) {
+    public init(auth: any AuthService, scores: any ScoreService, days: any DaySyncService,
+                voiceTokens: any VoiceTokenService, cards: any ZenCardService, isDemo: Bool) {
         self.auth = auth
         self.scores = scores
         self.days = days
+        self.voiceTokens = voiceTokens
+        self.cards = cards
         self.isDemo = isDemo
     }
 
     public static func fakes() -> PhoneServices {
-        PhoneServices(auth: FakeAuth(), scores: FakeScores(), days: FakeSync.demo(), isDemo: true)
+        PhoneServices(auth: FakeAuth(), scores: FakeScores(), days: FakeSync.demo(),
+                      voiceTokens: FakeVoiceTokens(), cards: FakeZenCards(), isDemo: true)
     }
 }
 

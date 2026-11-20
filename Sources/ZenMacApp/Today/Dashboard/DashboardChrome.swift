@@ -30,24 +30,6 @@ struct DashCard<Content: View>: View {
     }
 }
 
-/// One number on raised paper, inside the usual stats.
-struct StatTile<Content: View>: View {
-    let eyebrow: String
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: ZenSpace.s2) {
-            Eyebrow(eyebrow).lineLimit(1)
-            content()
-        }
-        .padding(ZenSpace.s4)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: ZenRadius.lg, style: .continuous).fill(Color.zen.surfaceRaised.opacity(0.7)))
-        .overlay(RoundedRectangle(cornerRadius: ZenRadius.lg, style: .continuous).strokeBorder(Color.zen.borderHairline.opacity(0.7), lineWidth: 1))
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// Today and the two days before, as one pill that slides.
 struct DayPicker: View {
     let days: [DayInsight]

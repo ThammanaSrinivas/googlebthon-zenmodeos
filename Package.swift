@@ -27,8 +27,8 @@ let swift6: [SwiftSetting] = [.swiftLanguageMode(.v6)]
 
 func shared(_ product: String) -> Target.Dependency { .product(name: product, package: "ZenShared") }
 
-var appDependencies: [Target.Dependency] = ["Albeit", shared("ZenAPI"), shared("ZenLogic"), shared("ZenMock"), shared("MacUsage")]
-var phoneDependencies: [Target.Dependency] = ["Albeit", shared("ZenAPI"), shared("ZenLogic"), shared("ZenMock")]
+var appDependencies: [Target.Dependency] = ["Albeit", shared("ZenAPI"), shared("ZenLogic"), shared("ZenMock"), shared("MacUsage"), shared("ZenVoice")]
+var phoneDependencies: [Target.Dependency] = ["Albeit", shared("ZenAPI"), shared("ZenLogic"), shared("ZenMock"), shared("ZenVoice")]
 var packageDependencies: [Package.Dependency] = [.package(path: "Packages/ZenShared")]
 if usePrivate {
     appDependencies.append(.product(name: "ZenCorePrivate", package: "googlebthon-zenmodeos-private"))

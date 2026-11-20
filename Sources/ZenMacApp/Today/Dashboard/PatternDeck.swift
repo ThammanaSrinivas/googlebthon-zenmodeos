@@ -55,7 +55,8 @@ struct PatternDeckCard: View {
                 Button { dash.open(card) } label: {
                     PlayingCard(rank: dash.rank(of: card), suit: card.suit, skin: card.skin, feeling: card.feeling,
                                 title: card.title, line: card.face, width: w)
-                        .shadow(color: .black.opacity(isHovered ? 0.55 : 0.4), radius: isHovered ? 22 : 12, y: isHovered ? 16 : 8)
+                        // Leans toward the pointer and throws a shadow in the card's own colour.
+                        .modifier(HoverTilt(glow: card.feeling.skin.glow, maxAngle: 14))
                 }
                 .buttonStyle(CardPressStyle())
                 .scaleEffect(scale * (isHovered ? 1.06 : 1))

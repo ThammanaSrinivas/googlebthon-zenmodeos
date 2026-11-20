@@ -106,12 +106,8 @@ private struct DayDial: View {
                 Canvas { ctx, _ in draw(&ctx, g) }
                 VStack(spacing: 3) {
                     Text(durationText(day.minutes)).font(ZenFont.number(max(18, g.radius * 0.17))).foregroundStyle(Color.zen.textHeading)
+                    // The Zen Score lives in Today's hero; the dial keeps to this Mac's time.
                     Text("on this Mac").font(ZenFont.text(11.5)).foregroundStyle(Color.zen.textCaption)
-                    HStack(spacing: 4) {
-                        Text("Zen Score").font(ZenFont.text(11)).foregroundStyle(Color.zen.textCaption)
-                        Text(day.score.text).font(ZenFont.number(11.5)).foregroundStyle(day.score.isGoodDay ? Color.zen.textBrand : Color.zen.textHeading)
-                    }
-                    .padding(.top, 2)
                 }
                 .position(g.center)
             }

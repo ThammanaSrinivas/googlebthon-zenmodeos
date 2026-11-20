@@ -32,37 +32,125 @@ enum SettingsCopy {
     static let signOut = "Sign out"
 }
 
-/// Settings: Zeno in the notch, quiet hours, the iPhone's Island, and what leaves this Mac.
-/// Everything saves as you change it and applies at once.
+/// Settings, one topic at a time: Zeno in the notch, Zeno's voice, quiet hours, the iPhone, and
+/// appearance with privacy. Each tab pairs its controls with the one thing that shows them working
+/// (the notch preview, the voice panel). Everything saves as you change it and applies at once.
 struct SettingsSection: View {
     @Environment(AppModel.self) private var model
+    @State private var tab: Tab = .zeno
+
+    enum Tab: String, CaseIterable, Identifiable {
+        case zeno = "Zeno", voice = "Voice", quiet = "Quiet hours", iPhone = "iPhone", appearance = "Appearance & privacy"
+        var id: String { rawValue }
+        var symbol: String {
+            switch self {
+            case .zeno: "bell.badge"
+            case .voice: "waveform"
+            case .quiet: "moon"
+            case .iPhone: "iphone"
+            case .appearance: "circle.lefthalf.filled"
+            }
+        }
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ZenSpace.s5) {
-                Text(SettingsCopy.title).zenType(.headline).foregroundStyle(Color.zen.textHeading)
-                    .accessibilityAddTraits(.isHeader)
-                HStack(alignment: .top, spacing: ZenSpace.s4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(SettingsCopy.title).zenType(.headline).foregroundStyle(Color.zen.textHeading)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer()
+                }
+                SettingsTabs(selection: $tab)
+                HStack(alignment: .top, spacing: ZenSpace.s5) {
                     VStack(spacing: ZenSpace.s4) {
-                        AppearanceSettings()
-                        NotchSettings()
-                        QuietSettings()
-                        IslandSettings()
-                        PrivacySettings()
+                        switch tab {
+                        case .zeno: NotchSettings()
+                        case .voice: VoiceSettingsGroups()
+                        case .quiet: QuietSettings()
+                        case .iPhone: IslandSettings()
+                        case .appearance:
+                            AppearanceSettings()
+                            PrivacySettings()
+                        }
                     }
                     .frame(maxWidth: .infinity)
-                    NotchPreviewCard()
+                    .id(tab)
+                    .transition(.opacity.combined(with: .offset(y: 6)))
+                    companion
                         .frame(width: 380)
                 }
+                .animation(ZenMotion.container, value: tab)
             }
             .padding(ZenSpace.s6)
         }
         .scrollIndicators(.hidden)
+        #if DEBUG
+        // Debug renders: ZEN_SETTINGS_TAB=voice opens that tab.
+        .onAppear {
+            if let raw = ProcessInfo.processInfo.environment["ZEN_SETTINGS_TAB"],
+               let t = Tab.allCases.first(where: { String(describing: $0) == raw }) { tab = t }
+        }
+        #endif
+    }
+
+    /// The right column: what this tab's choices look like in action.
+    @ViewBuilder
+    private var companion: some View {
+        switch tab {
+        case .voice: TalkToZenoPanel()
+        case .iPhone: IslandPreviewCard()
+        default: NotchPreviewCard()
+        }
+    }
+}
+
+/// The settings topics as a quiet segmented pill, icon and word.
+private struct SettingsTabs: View {
+    @Binding var selection: SettingsSection.Tab
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(SettingsSection.Tab.allCases) { t in
+                let on = t == selection
+                Button { selection = t } label: {
+                    Label(t.rawValue, systemImage: t.symbol)
+                        .font(ZenFont.text(13, on ? .semibold : .medium))
+                        .foregroundStyle(on ? Color.zen.textHeading : Color.zen.textBody)
+                        .padding(.horizontal, ZenSpace.s3 + 2).frame(height: 32)
+                        .background { if on { Capsule().fill(Color.zen.surfaceRaised).shadow(color: .black.opacity(0.08), radius: 3, y: 1) } }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+            }
+        }
+        .padding(3)
+        .background(Capsule().fill(Color.zen.surfaceSunk))
+    }
+}
+
+/// A pill choice: ink when picked, sunk otherwise.
+struct SettingsChip: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title).font(ZenFont.text(13, .semibold))
+                .foregroundStyle(selected ? Color.zen.onActionPrimary : Color.zen.textHeading)
+                .padding(.horizontal, ZenSpace.s3 + 2).frame(height: 32)
+                .background(Capsule().fill(selected ? Color.zen.actionPrimary : Color.zen.surfaceSunk))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 }
 
 /// A settings group: a Clash title over glass.
-private struct SettingsGroup<Content: View>: View {
+struct SettingsGroup<Content: View>: View {
     let title: String
     var caption: String?
     @ViewBuilder var content: Content
@@ -82,7 +170,7 @@ private struct SettingsGroup<Content: View>: View {
 }
 
 /// A switch row: label left, the system switch right, tinted green.
-private struct SwitchRow: View {
+struct SwitchRow: View {
     let title: String
     var detail: String?
     @Binding var isOn: Bool
@@ -252,14 +340,7 @@ private struct QuietSettings: View {
     }
 
     private func chip(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title).font(ZenFont.text(13, .semibold))
-                .foregroundStyle(on ? Color.zen.onActionPrimary : Color.zen.textHeading)
-                .padding(.horizontal, ZenSpace.s3 + 2).frame(height: 32)
-                .background(Capsule().fill(on ? Color.zen.actionPrimary : Color.zen.surfaceSunk))
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+        SettingsChip(title: title, selected: on, action: action)
     }
 
     static func clock(_ minutes: Int) -> String {
@@ -275,10 +356,7 @@ private struct IslandSettings: View {
     var body: some View {
         @Bindable var prefs = model.preferences
         SettingsGroup(title: SettingsCopy.islandTitle, caption: SettingsCopy.islandCaption) {
-            HStack(spacing: ZenSpace.s3) {
-                IslandPill(feeling: .calm, score: prefs.values.islandScore ? (model.snapshot?.score.text ?? "8.1") : "")
-                DemoTag("Saved on this Mac")
-            }
+            DemoTag("Saved on this Mac")
             SwitchRow(title: SettingsCopy.islandScore, isOn: $prefs.values.islandScore)
             SwitchRow(title: SettingsCopy.islandGoodDay, detail: "\"Good day · 8.1 · 3 of 4 good days\"", isOn: $prefs.values.islandGoodDay)
             SwitchRow(title: SettingsCopy.islandFocus, detail: "Never a countdown", isOn: $prefs.values.islandFocus)
@@ -363,5 +441,59 @@ private struct NotchPreviewCard: View {
         }
         .padding(ZenSpace.s5)
         .glassCard(radius: ZenRadius.widget)
+    }
+}
+
+/// The iPhone tab's companion: the top of a phone with the Dynamic Island, then each Island moment
+/// that's switched on, as it would open.
+private struct IslandPreviewCard: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let p = model.preferences.values
+        let score = model.snapshot?.score.text ?? "8.1"
+        VStack(alignment: .leading, spacing: ZenSpace.s4) {
+            Eyebrow(SettingsCopy.preview)
+            ZStack(alignment: .top) {
+                UnevenRoundedRectangle(topLeadingRadius: 44, topTrailingRadius: 44, style: .continuous)
+                    .fill(LinearGradient(colors: [Color(hex: 0x1C211C), Color(hex: 0x0E110E)], startPoint: .top, endPoint: .bottom))
+                    .frame(height: 120)
+                HStack {
+                    Text(Date.now.formatted(date: .omitted, time: .shortened)).font(ZenFont.text(13, .semibold)).foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "battery.75percent").foregroundStyle(.white)
+                }
+                .padding(.horizontal, 28).padding(.top, 18)
+                IslandPill(feeling: .calm, score: p.islandScore ? score : "").padding(.top, 12)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(p.islandScore ? "Dynamic Island showing Zen Score \(score)" : "Dynamic Island")
+            VStack(spacing: ZenSpace.s2) {
+                if p.islandGoodDay { moment(.happy, kicker: "Good day", line: "\(score) · 3 of 4 good days this week") }
+                if p.islandFocus { moment(.pleasant, kicker: "Focus · 18:42", line: "Reading, counting up. +5 so far.") }
+                if p.islandReactions { moment(.proud, kicker: "Zen Bros", line: "Asha cheered your good day.") }
+                if !p.islandGoodDay && !p.islandFocus && !p.islandReactions {
+                    Text("The Island shows only the score.").zenType(.caption).foregroundStyle(Color.zen.textCaption)
+                }
+            }
+            Text(SettingsCopy.islandCaption).zenType(.caption).foregroundStyle(Color.zen.textCaption)
+        }
+        .padding(ZenSpace.s5)
+        .glassCard(radius: ZenRadius.widget)
+        .animation(ZenMotion.container, value: p)
+    }
+
+    private func moment(_ feeling: ZenoFeeling, kicker: String, line: String) -> some View {
+        HStack(spacing: ZenSpace.s3) {
+            ZenoView(feeling).frame(width: 46, height: 35)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(kicker.uppercased()).font(ZenFont.number(9.5)).tracking(0.9).foregroundStyle(feeling.skin.glow)
+                Text(line).font(ZenFont.text(13, .semibold)).foregroundStyle(Color.zen.islandText)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, ZenSpace.s4).padding(.vertical, ZenSpace.s3)
+        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Color.zen.island))
+        .accessibilityElement(children: .combine)
     }
 }
