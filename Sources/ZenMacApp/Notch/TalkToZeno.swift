@@ -58,7 +58,7 @@ final class WakeWordListener {
 
     func start() async {
         guard state != .listening else { return }
-        let speech = await withCheckedContinuation { c in SFSpeechRecognizer.requestAuthorization { c.resume(returning: $0) } }
+        let speech = await Self.speechAuthorization()
         let mic = await AVCaptureDevice.requestAccess(for: .audio)
         guard speech == .authorized, mic else { state = .needsPermission; return }
         guard let recognizer, recognizer.isAvailable else { state = .unavailable; return }
@@ -85,31 +85,54 @@ final class WakeWordListener {
         self.request = request
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak request] buffer, _ in request?.append(buffer) }
+        // No microphone (or none we may use): installing a tap would throw.
+        guard format.sampleRate > 0, format.channelCount > 0 else { state = .unavailable; return }
+        input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.feed(request))
         engine.prepare()
-        do { try engine.start() } catch { state = .unavailable; return }
+        do { try engine.start() } catch { input.removeTap(onBus: 0); state = .unavailable; return }
         state = .listening
-        task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            let text = result?.bestTranscription.formattedString ?? ""
-            let done = error != nil || result?.isFinal == true
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    guard let self, self.state == .listening else { return }
-                    if WakeWord.heard(text) {
-                        self.stop()
-                        self.onWake?()
-                    } else if done {
-                        self.scheduleRestart(recognizer)
-                    }
-                }
-            }
-        }
+        task = recognizer.recognitionTask(with: request, resultHandler: Self.onResult { [weak self] text, done in
+            Task { @MainActor in self?.heard(text, done: done) }
+        })
         // Recognition tasks end after about a minute: start a fresh one before that.
         restart = Task { [weak self] in
             try? await Task.sleep(for: .seconds(50))
             guard !Task.isCancelled else { return }
             self?.begin(recognizer)
         }
+    }
+
+    /// A transcript arrived (on the main actor): wake on Zeno's name, or start over when the task ended.
+    private func heard(_ text: String, done: Bool) {
+        guard state == .listening else { return }
+        if WakeWord.heard(text) {
+            stop()
+            onWake?()
+        } else if done, let recognizer {
+            scheduleRestart(recognizer)
+        }
+    }
+
+    // Apple calls these three back on its own threads (TCC's reply queue, the audio render thread,
+    // the recognizer's queue). A closure written inside this @MainActor class is main-actor-only,
+    // and Swift 6 stops the app the moment another thread runs one. So they're made here, outside
+    // the main actor, and hop back with a Task when they need state.
+
+    /// Asks for speech recognition (the first time, the system prompt).
+    nonisolated static func speechAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { c in SFSpeechRecognizer.requestAuthorization { c.resume(returning: $0) } }
+    }
+
+    /// The mic tap: hands each buffer to the recognition request, on the audio thread.
+    nonisolated static func feed(_ request: SFSpeechAudioBufferRecognitionRequest) -> AVAudioNodeTapBlock {
+        nonisolated(unsafe) weak let request = request
+        return { buffer, _ in request?.append(buffer) }
+    }
+
+    /// The recognizer's callback: the words so far, and whether this task has ended.
+    nonisolated static func onResult(_ deliver: @escaping @Sendable (String, Bool) -> Void)
+        -> @Sendable (SFSpeechRecognitionResult?, (any Error)?) -> Void {
+        { result, error in deliver(result?.bestTranscription.formattedString ?? "", error != nil || result?.isFinal == true) }
     }
 
     private func scheduleRestart(_ recognizer: SFSpeechRecognizer) {

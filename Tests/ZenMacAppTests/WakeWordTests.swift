@@ -1,3 +1,6 @@
+import AVFoundation
+import Foundation
+import Speech
 import Testing
 @testable import ZenMacApp
 
@@ -18,5 +21,24 @@ struct WakeWordTests {
         #expect(!WakeWord.heard("xenophobia is a word"))
         #expect(!WakeWord.heard("zenodo"))
         #expect(!WakeWord.heard(""))
+    }
+
+    // The crash of 21 Nov: allowing speech recognition called back on TCC's queue into a
+    // main-actor-only closure, and Swift 6 trapped. Apple's three callbacks must run anywhere.
+    @Test("The listener's callbacks run on Apple's own threads without trapping")
+    func callbacksOffTheMainThread() async {
+        let heard: (String, Bool) = await withCheckedContinuation { c in
+            let deliver = WakeWordListener.onResult { text, done in c.resume(returning: (text, done)) }
+            DispatchQueue.global().async { deliver(nil, NSError(domain: "test", code: 1)) }
+        }
+        #expect(heard.0.isEmpty && heard.1)
+
+        let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
+        nonisolated(unsafe) let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 160)!
+        buffer.frameLength = 160
+        nonisolated(unsafe) let tap = WakeWordListener.feed(SFSpeechAudioBufferRecognitionRequest())
+        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global().async { tap(buffer, AVAudioTime(hostTime: 0)); c.resume() }
+        }
     }
 }
