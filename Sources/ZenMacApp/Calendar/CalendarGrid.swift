@@ -41,7 +41,7 @@ struct EventChip: View {
             RoundedRectangle(cornerRadius: 1.5).fill(event.color).frame(width: 3, height: 11)
             if !event.isAllDay {
                 Text(ClockText.time(event.start))
-                    .font(ZenFont.number(9.5)).foregroundStyle(Color.zen.textCaption)
+                    .font(ZenFont.number(10.5)).foregroundStyle(Color.zen.textBody)
             }
             Text(event.title).font(ZenFont.text(11.5, .medium)).foregroundStyle(Color.zen.textHeading).lineLimit(1)
         }
@@ -64,7 +64,8 @@ struct DayCell: View {
             HStack(alignment: .center, spacing: 5) {
                 ScoreDot(band: day.band)
                 if let score = day.score, !day.isFuture {
-                    Text(score.text).font(ZenFont.number(10)).foregroundStyle(Color.zen.textCaption)
+                    Text(score.text).font(ZenFont.number(11.5)).foregroundStyle(Color.zen.textBody)
+                        .accessibilityLabel("Zen Score \(score.text)")
                 }
                 Spacer(minLength: 0)
                 dateNumber
