@@ -8,6 +8,8 @@
 	<string>ZenMode OS</string>
 	<key>CFBundleExecutable</key>
 	<string>ZenModeMac</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.zenmodeos.buildathon.mac</string>
 	<key>CFBundleName</key>

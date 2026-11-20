@@ -29,7 +29,8 @@ cp scripts/Info.plist "$app/Contents/Info.plist"
 for b in "$bin_dir"/*.bundle; do
   [[ -d "$b" ]] && cp -R "$b" "$app/Contents/Resources/"
 done
-# TODO(imagery): app icon (AppIcon.icns from the mark, Albeit light) once the art is generated.
+# The app icon (the same art as the Xcode app's Apps/Mac/Sources/Assets.xcassets).
+cp scripts/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 # Ad-hoc signature: enough for a local run and for TCC to remember the Accessibility grant.
 codesign --force --sign - "$app" >/dev/null
 
