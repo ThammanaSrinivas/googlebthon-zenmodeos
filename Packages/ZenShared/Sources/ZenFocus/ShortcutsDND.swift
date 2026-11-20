@@ -39,11 +39,11 @@ public struct ShortcutsDNDHook: FocusHook {
         return .needsSetup(gone.count == 2 ? "Add the two Focus Shortcuts" : "Add “\(gone[0])”")
     }
 
-    public func onFocusStart(_ session: FocusSession) async throws {
+    public func onFocusStart(_ session: FocusBlock) async throws {
         try await shortcut(Self.onShortcut)
     }
 
-    public func onFocusEnd(_ session: FocusSession, kept: Bool) async throws {
+    public func onFocusEnd(_ session: FocusBlock, kept: Bool) async throws {
         try await shortcut(Self.offShortcut)
     }
 

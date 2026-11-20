@@ -13,7 +13,7 @@ public enum Webhook {
     public enum Event: String, Sendable { case focusStart = "focus_start", focusEnd = "focus_end" }
 
     /// The body, with its keys in a fixed order so a signature can be checked byte for byte.
-    public static func body(_ event: Event, session: FocusSession, kept: Bool?, timeZone: TimeZone = .current) -> Data {
+    public static func body(_ event: Event, session: FocusBlock, kept: Bool?, timeZone: TimeZone = .current) -> Data {
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime]
         iso.timeZone = timeZone
@@ -41,7 +41,7 @@ public enum Webhook {
         return zip(expected, given).reduce(0) { $0 | ($1.0 ^ $1.1) } == 0
     }
 
-    public static func request(url: URL, _ event: Event, session: FocusSession, kept: Bool?, secret: String,
+    public static func request(url: URL, _ event: Event, session: FocusBlock, kept: Bool?, secret: String,
                                timeZone: TimeZone = .current) -> URLRequest {
         let body = body(event, session: session, kept: kept, timeZone: timeZone)
         var request = URLRequest(url: url, timeoutInterval: 5)
@@ -127,15 +127,15 @@ public struct WebhookHook: FocusHook {
         return Webhook.isAllowed(c.url) ? .ready : .needsSetup("Use an https URL")
     }
 
-    public func onFocusStart(_ session: FocusSession) async throws {
+    public func onFocusStart(_ session: FocusBlock) async throws {
         try await post(.focusStart, session, kept: nil)
     }
 
-    public func onFocusEnd(_ session: FocusSession, kept: Bool) async throws {
+    public func onFocusEnd(_ session: FocusBlock, kept: Bool) async throws {
         try await post(.focusEnd, session, kept: kept)
     }
 
-    private func post(_ event: Webhook.Event, _ session: FocusSession, kept: Bool?) async throws {
+    private func post(_ event: Webhook.Event, _ session: FocusBlock, kept: Bool?) async throws {
         guard let c = config() else { throw HookFailure("Not set up") }
         let (code, _) = try await sender.send(Webhook.request(url: c.url, event, session: session, kept: kept, secret: c.secret))
         guard (200..<300).contains(code) else { throw HookFailure("The server answered \(code)") }

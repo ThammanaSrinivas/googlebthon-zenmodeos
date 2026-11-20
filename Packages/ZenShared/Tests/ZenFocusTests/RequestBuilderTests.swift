@@ -56,7 +56,7 @@ struct WebhookTests {
     @Test("The body is the contract's, in a fixed order, with no uid or email")
     func body() {
         let ist = TimeZone(identifier: "Asia/Kolkata")!
-        let s = FocusSession(id: "s1", startAt: Date(timeIntervalSince1970: 1_795_149_000), until: Date(timeIntervalSince1970: 1_795_152_000), source: .manual)
+        let s = FocusBlock(id: "s1", startAt: Date(timeIntervalSince1970: 1_795_149_000), until: Date(timeIntervalSince1970: 1_795_152_000), source: .manual)
         let start = String(decoding: Webhook.body(.focusStart, session: s, kept: nil, timeZone: ist), as: UTF8.self)
         #expect(start == #"{"event":"focus_start","session_id":"s1","start_at":"2026-11-20T10:00:00+05:30","until":"2026-11-20T10:50:00+05:30","source":"manual"}"#)
         let end = String(decoding: Webhook.body(.focusEnd, session: s, kept: true, timeZone: ist), as: UTF8.self)
@@ -167,7 +167,7 @@ struct SlackTests {
         let sender = FakeSender()
         let ist = TimeZone(identifier: "Asia/Kolkata")!
         let hook = SlackHook(token: { "xoxp-1" }, sender: sender, timeZone: ist)
-        let s = FocusSession(id: "s", startAt: Date(), until: Date().addingTimeInterval(50 * 60), source: .manual)
+        let s = FocusBlock(id: "s", startAt: Date(), until: Date().addingTimeInterval(50 * 60), source: .manual)
         try await hook.onFocusStart(s)
         try await hook.onFocusEnd(s, kept: true)
         let methods = Set(sender.sent.map { $0.url!.lastPathComponent })

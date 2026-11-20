@@ -152,7 +152,7 @@ public struct SlackHook: FocusHook {
         return .ready
     }
 
-    public func onFocusStart(_ session: FocusSession) async throws {
+    public func onFocusStart(_ session: FocusBlock) async throws {
         guard let t = token() else { throw HookFailure("Not set up") }
         let minutes = max(1, Int((session.until.timeIntervalSinceNow / 60).rounded(.up)))
         async let status: Void = call(SlackAPI.setStatus(token: t, text: Self.statusText(until: session.until, timeZone: timeZone),
@@ -161,7 +161,7 @@ public struct SlackHook: FocusHook {
         _ = try await (status, snooze)
     }
 
-    public func onFocusEnd(_ session: FocusSession, kept: Bool) async throws {
+    public func onFocusEnd(_ session: FocusBlock, kept: Bool) async throws {
         guard let t = token() else { throw HookFailure("Not set up") }
         async let status: Void = call(SlackAPI.clearStatus(token: t))
         async let snooze: Void = endSnooze(t)

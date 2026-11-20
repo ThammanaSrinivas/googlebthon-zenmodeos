@@ -20,14 +20,14 @@ public enum HookState: String, Codable, Sendable {
 }
 
 /// One focus block: from now until a clock time. People see the end time, never a countdown.
-public struct FocusSession: Codable, Equatable, Hashable, Sendable, Identifiable {
+public struct FocusBlock: Codable, Equatable, Hashable, Sendable, Identifiable {
     /// `[A-Za-z0-9_-]{1,64}` (the rules check it).
     public let id: String
     public let startAt: Date
     public let until: Date
     public let source: FocusSource
 
-    public init(id: String = FocusSession.newId(), startAt: Date, until: Date, source: FocusSource) {
+    public init(id: String = FocusBlock.newId(), startAt: Date, until: Date, source: FocusSource) {
         self.id = id
         self.startAt = startAt
         self.until = max(until, startAt)
@@ -45,14 +45,14 @@ public struct FocusSession: Codable, Equatable, Hashable, Sendable, Identifiable
 
 /// A finished block, as `users/{uid}/focus_sessions/{id}` holds it.
 public struct FocusRecord: Codable, Equatable, Sendable {
-    public let session: FocusSession
+    public let session: FocusBlock
     public let endAt: Date
     /// Ran to its end time (or past it). An early stop is not kept.
     public let kept: Bool
     /// Hook id → what it did at the start.
     public let hooks: [String: HookState]
 
-    public init(session: FocusSession, endAt: Date, kept: Bool, hooks: [String: HookState]) {
+    public init(session: FocusBlock, endAt: Date, kept: Bool, hooks: [String: HookState]) {
         self.session = session
         self.endAt = max(endAt, session.startAt)
         self.kept = kept

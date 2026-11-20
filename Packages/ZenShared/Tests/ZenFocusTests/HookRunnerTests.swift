@@ -28,12 +28,12 @@ final class FakeHook: FocusHook, @unchecked Sendable {
         }
     }
 
-    func onFocusStart(_ session: FocusSession) async throws {
+    func onFocusStart(_ session: FocusBlock) async throws {
         lock.withLock { _calls.append("start") }
         try await act(mode)
     }
 
-    func onFocusEnd(_ session: FocusSession, kept: Bool) async throws {
+    func onFocusEnd(_ session: FocusBlock, kept: Bool) async throws {
         lock.withLock { _calls.append(kept ? "end-kept" : "end-early") }
         try await act(endMode)
     }
@@ -49,8 +49,8 @@ final class FakeHook: FocusHook, @unchecked Sendable {
 }
 
 let t0 = Date(timeIntervalSince1970: 1_763_600_000)
-func session(_ minutes: Double = 50) -> FocusSession {
-    FocusSession(id: "s1", startAt: t0, until: t0.addingTimeInterval(minutes * 60), source: .manual)
+func session(_ minutes: Double = 50) -> FocusBlock {
+    FocusBlock(id: "s1", startAt: t0, until: t0.addingTimeInterval(minutes * 60), source: .manual)
 }
 
 @Suite("Hook runner")

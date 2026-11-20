@@ -17,10 +17,10 @@ public protocol FocusHook: Sendable {
     var id: String { get }
     var displayName: String { get }
     func status() async -> HookStatus
-    func onFocusStart(_ session: FocusSession) async throws
+    func onFocusStart(_ session: FocusBlock) async throws
     /// Runs for every hook that was ready at the start, even one whose start failed (a half-set
     /// status still needs clearing), after an early stop and after a crash.
-    func onFocusEnd(_ session: FocusSession, kept: Bool) async throws
+    func onFocusEnd(_ session: FocusBlock, kept: Bool) async throws
 }
 
 /// What a hook did, for its chip.
@@ -51,7 +51,7 @@ public struct HookRunner: Sendable {
     }
 
     /// Starts every ready hook. Outcomes come back in the hooks' order.
-    public func start(_ session: FocusSession, hooks: [any FocusHook]) async -> [HookOutcome] {
+    public func start(_ session: FocusBlock, hooks: [any FocusHook]) async -> [HookOutcome] {
         await run(hooks) { hook in
             switch await withDeadline(timeout, { await hook.status() }) {
             case .finished(.ready):
@@ -68,7 +68,7 @@ public struct HookRunner: Sendable {
     }
 
     /// Ends the hooks that started (on or failed); skipped ones are left alone.
-    public func end(_ session: FocusSession, kept: Bool, hooks: [any FocusHook], started: [HookOutcome]) async -> [HookOutcome] {
+    public func end(_ session: FocusBlock, kept: Bool, hooks: [any FocusHook], started: [HookOutcome]) async -> [HookOutcome] {
         let ran = Set(started.filter { $0.state != .skipped }.map(\.id))
         return await run(hooks.filter { ran.contains($0.id) }) { hook in
             await outcome(of: hook) { try await hook.onFocusEnd(session, kept: kept) }
@@ -77,7 +77,7 @@ public struct HookRunner: Sendable {
 
     /// Ends every hook regardless of how it started: recovery after a crash, when the start's
     /// outcomes are gone. Hooks that aren't set up are skipped.
-    public func endAll(_ session: FocusSession, kept: Bool, hooks: [any FocusHook]) async -> [HookOutcome] {
+    public func endAll(_ session: FocusBlock, kept: Bool, hooks: [any FocusHook]) async -> [HookOutcome] {
         await run(hooks) { hook in
             guard case .finished(.ready) = await withDeadline(timeout, { await hook.status() }) else {
                 return HookOutcome(id: hook.id, displayName: hook.displayName, state: .skipped)

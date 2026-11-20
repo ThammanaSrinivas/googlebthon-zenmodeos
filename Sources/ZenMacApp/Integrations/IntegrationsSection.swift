@@ -49,13 +49,14 @@ enum IntegrationsCopy {
 /// workspace (who gave the seat and what they can see).
 struct IntegrationsSection: View {
     @Environment(AppModel.self) private var model
-    @State private var tab: Tab = .tools
+    @State private var tab: Tab = .focus
 
     enum Tab: String, CaseIterable, Identifiable {
-        case tools, work, workspace
+        case focus, tools, work, workspace
         var id: String { rawValue }
         var label: String {
             switch self {
+            case .focus: "Focus Mode"
             case .tools: IntegrationsCopy.tabTools
             case .work: IntegrationsCopy.tabWork
             case .workspace: IntegrationsCopy.tabWorkspace
@@ -72,7 +73,7 @@ struct IntegrationsSection: View {
     }
 
     /// The work week is for workspace seats that track work, not campus or personal ones.
-    private var tabs: [Tab] { workspace.map { $0.isCampus ? [.tools, .workspace] : Tab.allCases } ?? [.tools, .workspace] }
+    private var tabs: [Tab] { workspace.map { $0.isCampus ? [.focus, .tools, .workspace] : Tab.allCases } ?? [.focus, .tools, .workspace] }
 
     var body: some View {
         ScrollView {
@@ -81,6 +82,7 @@ struct IntegrationsSection: View {
                 TabPills(tabs: tabs, selection: $tab)
                 Group {
                     switch tab {
+                    case .focus: FocusHooksTab()
                     case .tools: ToolsTab(workspace: workspace)
                     case .work:
                         HStack(alignment: .top, spacing: ZenSpace.s4) {
@@ -99,6 +101,7 @@ struct IntegrationsSection: View {
         .scrollIndicators(.hidden)
         .onAppear {
             model.integrations.markCalendar(model.calendarLink.state == .connected)
+            if let t = model.integrationsTab { tab = t; model.integrationsTab = nil }
             #if DEBUG
             // Debug renders: ZEN_INTEGRATIONS_TAB=tools|work|workspace.
             if let raw = ProcessInfo.processInfo.environment["ZEN_INTEGRATIONS_TAB"], let t = Tab(rawValue: raw) { tab = t }

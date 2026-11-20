@@ -44,6 +44,7 @@ final class AppModel {
 
     func start() {
         services = ZenMacBackend.make()
+        startFocusMode()
         makeVoice()
         AppNap.holdOff()
         frontmost.start()
@@ -279,11 +280,16 @@ final class AppModel {
     let preferences: ZenPreferences
     /// The tools the person (or their workspace) connected.
     let integrations: IntegrationsModel
+    /// Focus Mode: the switch, the hooks, and what each did.
+    let focus: FocusModel
+    /// Opens Integrations on this tab (a card's "Set up hooks").
+    var integrationsTab: IntegrationsSection.Tab?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         preferences = ZenPreferences(defaults: defaults)
         integrations = IntegrationsModel(defaults: defaults)
+        focus = FocusModel(defaults: defaults)
         goldLedger = GoldLedger(defaults: defaults)
         voiceLedger = OnDeviceLedger(store: ZenVoice.UserDefaultsKeyValueStore(defaults))
     }

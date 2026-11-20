@@ -17,12 +17,20 @@ public struct Services: Sendable {
     public let voiceTokens: any VoiceTokenService
     /// Zen Cards Zeno makes in conversation.
     public let cards: any ZenCardService
+    /// Focus Mode's writes (focus_sessions, daily, live/focus). Nil: this Mac keeps them for later.
+    public let focus: (any FocusSyncService)?
+    /// zenoCatchUp, zenoPlanDay, zenoWrapUp, zenoAsk.
+    public let work: any ZenoWorkService
+    /// The team: sponsor, Focus Report link, the Zen Gold claim.
+    public let team: any TeamService
     /// True when the fakes are wired; every surface showing their data says "Demo data".
     public let isDemo: Bool
 
     public init(auth: any AuthService, nudges: any ZenoNudgeService, cohorts: any CohortService,
                 scores: any ScoreService, days: any DaySyncService,
-                voiceTokens: any VoiceTokenService, cards: any ZenCardService, isDemo: Bool) {
+                voiceTokens: any VoiceTokenService, cards: any ZenCardService,
+                focus: (any FocusSyncService)? = nil, work: any ZenoWorkService = FakeZenoWork(),
+                team: any TeamService = FakeTeam(), isDemo: Bool) {
         self.auth = auth
         self.nudges = ResilientNudges(nudges)
         self.cohorts = cohorts
@@ -30,6 +38,9 @@ public struct Services: Sendable {
         self.days = days
         self.voiceTokens = voiceTokens
         self.cards = cards
+        self.focus = focus
+        self.work = work
+        self.team = team
         self.isDemo = isDemo
     }
 
@@ -37,7 +48,7 @@ public struct Services: Sendable {
     public static func fakes() -> Services {
         Services(auth: FakeAuth(approvalDelay: .seconds(30)), nudges: FakeNudges(), cohorts: FakeCohorts(),
                  scores: FakeScores(), days: FakeSync.demo(), voiceTokens: FakeVoiceTokens(), cards: FakeZenCards(),
-                 isDemo: true)
+                 focus: FakeFocusSync(), work: FakeZenoWork(), team: FakeTeam(), isDemo: true)
     }
 }
 

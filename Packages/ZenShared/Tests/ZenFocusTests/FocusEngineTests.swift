@@ -123,7 +123,7 @@ struct FocusEngineTests {
     func crashDuringStart() async throws {
         let clock = Clock(t0)
         let store = MemoryFocusStore()
-        let s = FocusSession(id: "x", startAt: t0, until: t0.addingTimeInterval(1500), source: .manual)
+        let s = FocusBlock(id: "x", startAt: t0, until: t0.addingTimeInterval(1500), source: .manual)
         store.set(try JSONEncoder().encode(ActiveFocus(session: s, started: [:])), forKey: FocusEngine.activeKey)
         let hook = FakeHook("dnd")
         clock.advance(minutes: 10)
@@ -201,11 +201,11 @@ struct FocusEngineTests {
 
     @Test("A session's id matches the rules' pattern; planned minutes are clamped")
     func sessionShape() {
-        let s = FocusSession(startAt: t0, until: t0.addingTimeInterval(50 * 60), source: .manual)
+        let s = FocusBlock(startAt: t0, until: t0.addingTimeInterval(50 * 60), source: .manual)
         #expect(s.id.count <= 64 && s.id.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" })
         #expect(s.plannedMin == 50)
-        #expect(FocusSession(startAt: t0, until: t0.addingTimeInterval(-60), source: .manual).plannedMin == 0)
-        #expect(FocusSession(startAt: t0, until: t0.addingTimeInterval(86_400), source: .manual).plannedMin == 720)
+        #expect(FocusBlock(startAt: t0, until: t0.addingTimeInterval(-60), source: .manual).plannedMin == 0)
+        #expect(FocusBlock(startAt: t0, until: t0.addingTimeInterval(86_400), source: .manual).plannedMin == 720)
         #expect(LiveFocus(active: false, until: t0).until == nil)
         #expect(LiveFocus(active: true, until: t0).isFocusing(at: t0.addingTimeInterval(-1)))
         #expect(!LiveFocus(active: true, until: t0).isFocusing(at: t0.addingTimeInterval(1)))

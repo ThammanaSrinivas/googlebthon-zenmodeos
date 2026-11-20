@@ -24,7 +24,7 @@ public struct UserDefaultsFocusStore: FocusKeyValueStore, @unchecked Sendable {
 
 /// The block in progress, saved before any hook runs so a crash can still end it on the next launch.
 public struct ActiveFocus: Codable, Equatable, Sendable {
-    public let session: FocusSession
+    public let session: FocusBlock
     public var started: [String: HookState]
 }
 
@@ -69,11 +69,11 @@ public actor FocusEngine {
     public var active: ActiveFocus? { load(ActiveFocus.self, Self.activeKey) }
 
     /// Starts a block that ends at `until`. A second start while focusing returns the running one.
-    public func start(until: Date, source: FocusSource) async -> (FocusSession, [HookOutcome]) {
+    public func start(until: Date, source: FocusSource) async -> (FocusBlock, [HookOutcome]) {
         if let running = active {
             return (running.session, running.started.map { HookOutcome(id: $0.key, displayName: $0.key, state: $0.value) })
         }
-        let session = FocusSession(startAt: now(), until: until, source: source)
+        let session = FocusBlock(startAt: now(), until: until, source: source)
         save(ActiveFocus(session: session, started: [:]), Self.activeKey)
         let outcomes = await runner.start(session, hooks: hooks())
         save(ActiveFocus(session: session, started: Dictionary(uniqueKeysWithValues: outcomes.map { ($0.id, $0.state) })), Self.activeKey)

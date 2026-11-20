@@ -21,6 +21,7 @@ struct DashboardView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: ZenSpace.s8) {
                         topBar
+                        FocusCard()
                         HeroCard(day: dash.day).id(Anchor.hero)
                         ScreensSection().id(Anchor.screens)
                         Group {
