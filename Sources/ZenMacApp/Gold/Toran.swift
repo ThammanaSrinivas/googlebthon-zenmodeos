@@ -135,22 +135,3 @@ private struct Tassel: Shape {
         return p
     }
 }
-
-/// The reward glyph: an amber coin with an ink ring and a star, lit from the top left.
-struct GoldCoin: View {
-    var body: some View {
-        GeometryReader { geo in
-            let s = min(geo.size.width, geo.size.height)
-            ZStack {
-                Circle().fill(RadialGradient(colors: [Color(hex: 0xFFE59A), Color(hex: 0xFFC800), Color(hex: 0xE2A400)],
-                                             center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: s * 0.6))
-                Circle().strokeBorder(Color(hex: 0x1E1E1E), lineWidth: s * 0.07).padding(s * 0.18)
-                Image(systemName: "star.fill").font(.system(size: s * 0.26, weight: .bold)).foregroundStyle(Color(hex: 0xFFF4D9))
-                    .shadow(color: Color(hex: 0x1E1E1E), radius: 0, x: 0.6, y: 0.6)
-            }
-            .frame(width: s, height: s)
-        }
-        .aspectRatio(1, contentMode: .fit)
-        .accessibilityHidden(true)
-    }
-}

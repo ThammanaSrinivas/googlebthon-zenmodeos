@@ -44,18 +44,60 @@ struct GoldQuote: Equatable, Sendable {
     /// Rupees in paise, so sums never drift.
     let lastPaise: Int
     let previousClosePaise: Int
+    /// When the last trade printed.
     let at: Date
+    /// True while the NSE's regular session is open.
     let marketOpen: Bool
+    /// Today's one-minute closes, oldest first, for the sparkline.
+    var dayPaise: [Int] = []
+
+    /// The move against the previous close, in paise and as a fraction.
+    var changePaise: Int { lastPaise - previousClosePaise }
+    var changeFraction: Double { previousClosePaise == 0 ? 0 : Double(changePaise) / Double(previousClosePaise) }
 }
 
-/// Where quotes come from. The live feed reaches the app through the private package; until it
-/// does, `NoQuotes` keeps Invest waiting rather than showing a made-up number.
+/// Where quotes come from. `YahooGoldQuotes` reads the public NSE price; `NoQuotes` keeps Invest
+/// waiting rather than showing a made-up number.
 protocol GoldQuoteService: Sendable {
     func latest() async -> GoldQuote?
 }
 
 struct NoQuotes: GoldQuoteService {
     func latest() async -> GoldQuote? { nil }
+}
+
+/// Reads Yahoo Finance's public chart response for GOLDBEES.NS. Pure, so it is tested on a
+/// captured response; the network lives in `YahooGoldQuotes`.
+enum GoldQuoteParser {
+    enum Failure: Error, Equatable { case malformed, noPrice }
+
+    static func parse(_ data: Data, now: Date) throws -> GoldQuote {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let chart = root["chart"] as? [String: Any],
+              let result = (chart["result"] as? [[String: Any]])?.first,
+              let meta = result["meta"] as? [String: Any] else { throw Failure.malformed }
+        guard let price = number(meta["regularMarketPrice"]), price > 0 else { throw Failure.noPrice }
+        let previous = number(meta["chartPreviousClose"]) ?? number(meta["previousClose"]) ?? price
+        let time = number(meta["regularMarketTime"]).map { Date(timeIntervalSince1970: $0) } ?? now
+        var open = false
+        if let period = meta["currentTradingPeriod"] as? [String: Any], let regular = period["regular"] as? [String: Any],
+           let start = number(regular["start"]), let end = number(regular["end"]) {
+            let t = now.timeIntervalSince1970
+            open = t >= start && t < end
+        }
+        let closes = ((result["indicators"] as? [String: Any])?["quote"] as? [[String: Any]])?.first?["close"] as? [Any] ?? []
+        let day = closes.compactMap(number).filter { $0 > 0 }.map(paise)
+        return GoldQuote(lastPaise: paise(price), previousClosePaise: paise(previous), at: time, marketOpen: open, dayPaise: day)
+    }
+
+    static func paise(_ rupees: Double) -> Int { Int((rupees * 100).rounded()) }
+
+    private static func number(_ any: Any?) -> Double? {
+        if let d = any as? Double { return d }
+        if let n = any as? NSNumber { return n.doubleValue }
+        if let i = any as? Int { return Double(i) }
+        return nil
+    }
 }
 
 /// One week's order, recorded on this Mac at the price handed off at.
