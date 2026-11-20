@@ -44,16 +44,24 @@ enum IntegrationsCopy {
     }
 }
 
-/// Integrations, in three tabs so the page never sprawls: the tools (what's on, what suits you,
-/// everything else), your work week (time tracked by itself, for workspace seats), and the
-/// workspace (who gave the seat and what they can see).
+/// Integrations, in tabs so the page never sprawls: the tools first (what's on, what suits you,
+/// everything else), then Focus Mode (the hooks and work hours), your work week (time tracked by
+/// itself, for workspace seats), and the workspace (who gave the seat and what they can see).
 struct IntegrationsSection: View {
     @Environment(AppModel.self) private var model
-    @State private var tab: Tab = .focus
+    @State private var tab: Tab = .tools
 
     enum Tab: String, CaseIterable, Identifiable {
-        case focus, tools, work, workspace
+        case tools, focus, work, workspace
         var id: String { rawValue }
+        var symbol: String {
+            switch self {
+            case .tools: "square.grid.2x2.fill"
+            case .focus: "moon.fill"
+            case .work: "clock.fill"
+            case .workspace: "building.2.fill"
+            }
+        }
         var label: String {
             switch self {
             case .focus: "Focus Mode"
@@ -73,9 +81,10 @@ struct IntegrationsSection: View {
     }
 
     /// The work week is for workspace seats that track work, not campus or personal ones.
-    private var tabs: [Tab] { workspace.map { $0.isCampus ? [.focus, .tools, .workspace] : Tab.allCases } ?? [.focus, .tools, .workspace] }
+    private var tabs: [Tab] { workspace.map { $0.isCampus ? [.tools, .focus, .workspace] : Tab.allCases } ?? [.tools, .focus, .workspace] }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: ZenSpace.s5) {
                 header
@@ -97,13 +106,24 @@ struct IntegrationsSection: View {
             }
             .padding(ZenSpace.s6)
             .animation(ZenMotion.container, value: tab)
+            Color.clear.frame(height: 1).id("end")
         }
         .scrollIndicators(.hidden)
+        #if DEBUG
+        // Debug renders: ZEN_INTEGRATIONS_SCROLL=end shows the foot of the tab.
+        .task {
+            if ProcessInfo.processInfo.environment["ZEN_INTEGRATIONS_SCROLL"] != nil {
+                try? await Task.sleep(for: .milliseconds(600))
+                proxy.scrollTo("end", anchor: .bottom)
+            }
+        }
+        #endif
+        }
         .onAppear {
             model.integrations.markCalendar(model.calendarLink.state == .connected)
             if let t = model.integrationsTab { tab = t; model.integrationsTab = nil }
             #if DEBUG
-            // Debug renders: ZEN_INTEGRATIONS_TAB=tools|work|workspace.
+            // Debug renders: ZEN_INTEGRATIONS_TAB=tools|focus|work|workspace.
             if let raw = ProcessInfo.processInfo.environment["ZEN_INTEGRATIONS_TAB"], let t = Tab(rawValue: raw) { tab = t }
             #endif
         }
@@ -154,28 +174,35 @@ struct IntegrationsSection: View {
     }
 }
 
-/// The section's tabs, as the quiet segmented pill the app uses everywhere.
+/// The section's tabs: a glyph and a name each, raised when open, a wash on hover, a ring for the
+/// keyboard. ⌘1 ⌘2 … jump between them.
 private struct TabPills: View {
     let tabs: [IntegrationsSection.Tab]
     @Binding var selection: IntegrationsSection.Tab
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(tabs) { t in
+            ForEach(Array(tabs.enumerated()), id: \.element) { i, t in
                 let on = t == selection
                 Button { selection = t } label: {
-                    Text(t.label).font(ZenFont.text(13, on ? .semibold : .medium))
-                        .foregroundStyle(on ? Color.zen.textHeading : Color.zen.textBody)
-                        .padding(.horizontal, ZenSpace.s4).frame(height: 32)
-                        .background { if on { Capsule().fill(Color.zen.surfaceRaised).shadow(color: .black.opacity(0.08), radius: 3, y: 1) } }
-                        .contentShape(Capsule())
+                    HStack(spacing: 7) {
+                        Image(systemName: t.symbol).font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(on ? Color.zen.textBrand : Color.zen.textCaption)
+                        Text(t.label)
+                    }
+                    .padding(.horizontal, ZenSpace.s4).frame(height: 36)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SegmentStyle(on: on, size: 13.5))
+                .focusEffectDisabled()
+                .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
+                .help("\(t.label) (⌘\(i + 1))")
+                .accessibilityLabel(t.label)
                 .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
             }
         }
-        .padding(3)
+        .padding(4)
         .background(Capsule().fill(Color.zen.surfaceSunk))
+        .overlay(Capsule().strokeBorder(Color.zen.borderHairline, lineWidth: 1))
         .fixedSize()
     }
 }

@@ -146,7 +146,7 @@ enum FocusDayKey {
     }
 }
 
-/// Integrations › Focus Mode: work hours and the after-hours guard.
+/// Integrations › Focus Mode: work hours and the after-hours guard, in the same frame as the hooks.
 struct WorkHoursCard: View {
     @Environment(AppModel.self) private var model
     @State private var start = Date()
@@ -154,45 +154,52 @@ struct WorkHoursCard: View {
     @State private var days: Set<Int> = []
     @State private var running = false
 
-    private static let dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    static let dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    static let fullDayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    /// What the form would save, so Save only lights up when something changed.
+    private var draft: WorkHours {
+        WorkHours(start: DayPlanner.text(start), end: DayPlanner.text(end), days: days.sorted(), tz: TimeZone.current.identifier)
+    }
+
+    private var changed: Bool {
+        let h = model.afterHours.hours
+        return draft.start != h.start || draft.end != h.end || draft.days != h.days.sorted()
+    }
 
     var body: some View {
         let g = model.afterHours
-        VStack(alignment: .leading, spacing: ZenSpace.s3) {
-            HStack(spacing: ZenSpace.s3) {
-                Image(systemName: "moon.zzz.fill").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.zen.textBrand)
-                    .frame(width: 36, height: 36)
-                    .background(RoundedRectangle(cornerRadius: ZenRadius.sm, style: .continuous).fill(Color.zen.surfaceTint))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Work hours").font(ZenFont.text(15, .semibold)).foregroundStyle(Color.zen.textHeading)
-                    Text(g.offline ? (g.lastStatus ?? "Offline for the evening") : "At the end: a wrap-up, Slack “Offline”, and the Mac goes quiet.")
-                        .zenType(.caption).foregroundStyle(Color.zen.textCaption)
+        HookCard(symbol: "moon.zzz.fill", name: "Work hours",
+                 status: g.offline ? (g.lastStatus ?? "Offline for the evening") : g.enabled ? "On: the evening is guarded" : "Off",
+                 ready: g.enabled) {
+            Text("At the end of the day: a wrap-up, Slack “Offline” and the Mac goes quiet. It all comes back when work starts.")
+                .zenType(.caption).foregroundStyle(Color.zen.textCaption)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .center, spacing: ZenSpace.s6) {
+                HStack(spacing: ZenSpace.s2) {
+                    Text("From").font(ZenFont.text(13)).foregroundStyle(Color.zen.textBody)
+                    DatePicker("Start", selection: $start, displayedComponents: .hourAndMinute).labelsHidden()
+                        .accessibilityLabel("Work starts at")
+                    Text("to").font(ZenFont.text(13)).foregroundStyle(Color.zen.textBody)
+                    DatePicker("End", selection: $end, displayedComponents: .hourAndMinute).labelsHidden()
+                        .accessibilityLabel("Work ends at")
                 }
-                Spacer(minLength: 0)
-                Toggle("After-hours guard", isOn: Binding(get: { g.enabled }, set: { g.enabled = $0 }))
-                    .toggleStyle(.switch).labelsHidden().controlSize(.small)
-            }
-            .accessibilityElement(children: .contain)
-            HStack(spacing: ZenSpace.s3) {
-                DatePicker("Start", selection: $start, displayedComponents: .hourAndMinute)
-                DatePicker("End", selection: $end, displayedComponents: .hourAndMinute)
-            }
-            .font(ZenFont.text(13))
-            .foregroundStyle(Color.zen.textBody)
-            HStack(spacing: 6) {
-                ForEach(1...7, id: \.self) { d in
-                    let on = days.contains(d)
-                    Button(Self.dayNames[d - 1]) { if on { days.remove(d) } else { days.insert(d) } }
-                        .buttonStyle(.plain)
-                        .font(ZenFont.text(12, on ? .semibold : .regular))
-                        .foregroundStyle(on ? Color.zen.onActionPrimary : Color.zen.textBody)
-                        .frame(width: 40, height: 26)
-                        .background(Capsule().fill(on ? Color.zen.actionPrimary : Color.zen.surfaceCard.opacity(0.8)))
-                        .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+                HStack(spacing: 6) {
+                    ForEach(1...7, id: \.self) { d in
+                        let on = days.contains(d)
+                        Button(Self.dayNames[d - 1]) { if on { days.remove(d) } else { days.insert(d) } }
+                            .buttonStyle(DayChipStyle(on: on))
+                            .focusEffectDisabled()
+                            .accessibilityLabel(Self.fullDayNames[d - 1])
+                            .accessibilityValue(on ? "a work day" : "off")
+                            .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+                    }
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Work days")
             }
-            HStack(spacing: ZenSpace.s2) {
-                Button("Save hours") { save() }.buttonStyle(ZenPrimaryButtonStyle())
+            HStack(spacing: ZenSpace.s4) {
+                Button("Save hours") { save() }.buttonStyle(ZenPrimaryButtonStyle()).disabled(!changed)
                 Button(running ? "Running…" : "Try the evening now") {
                     running = true
                     Task { await g.endWorkNow(); running = false }
@@ -200,10 +207,8 @@ struct WorkHoursCard: View {
                 .buttonStyle(ZenSecondaryButtonStyle()).disabled(running)
                 if g.offline { Button("Back to work") { Task { await g.backToWork() } }.buttonStyle(ZenLinkButtonStyle()) }
             }
+            HookSwitchRow(label: "After-hours guard", isOn: Binding(get: { g.enabled }, set: { g.enabled = $0 }))
         }
-        .padding(ZenSpace.s5)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .glassCard(radius: ZenRadius.lg)
         .onAppear(perform: load)
     }
 
@@ -215,6 +220,36 @@ struct WorkHoursCard: View {
     }
 
     private func save() {
-        model.afterHours.save(WorkHours(start: DayPlanner.text(start), end: DayPlanner.text(end), days: days.sorted(), tz: TimeZone.current.identifier))
+        model.afterHours.save(draft)
+    }
+}
+
+/// A work day: filled when it's on, outlined when off (3:1 against the card either way), a wash on
+/// hover, a ring for the keyboard.
+private struct DayChipStyle: ButtonStyle {
+    let on: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        ChipBody(configuration: configuration, on: on)
+    }
+
+    private struct ChipBody: View {
+        let configuration: Configuration
+        let on: Bool
+        @State private var hovering = false
+        @Environment(\.isFocused) private var focused
+
+        var body: some View {
+            configuration.label
+                .font(ZenFont.text(12.5, on ? .semibold : .medium))
+                .foregroundStyle(on ? Color.zen.onActionPrimary : Color.zen.textHeading)
+                .frame(width: 44, height: 30)
+                .background(Capsule().fill(on ? Color.zen.actionPrimary : (hovering ? Color.zen.surfaceRaised : Color.zen.surfaceCard.opacity(0.4))))
+                .overlay(Capsule().strokeBorder(on ? Color.clear : Color.zen.borderOutline, lineWidth: 1))
+                .overlay { if focused { Capsule().strokeBorder(Color.zen.textBrand, lineWidth: 2).padding(-3) } }
+                .opacity(configuration.isPressed ? 0.75 : 1)
+                .contentShape(Capsule())
+                .onHover { hovering = $0 }
+        }
     }
 }

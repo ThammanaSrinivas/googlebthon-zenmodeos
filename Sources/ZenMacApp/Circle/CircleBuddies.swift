@@ -432,20 +432,22 @@ private struct ReactionStyle: ButtonStyle {
 /// One option in a small segmented pill: raised when on, a wash on hover, a ring for the keyboard.
 struct SegmentStyle: ButtonStyle {
     let on: Bool
+    var size: CGFloat = 12.5
 
     func makeBody(configuration: Configuration) -> some View {
-        SegmentBody(configuration: configuration, on: on)
+        SegmentBody(configuration: configuration, on: on, size: size)
     }
 
     private struct SegmentBody: View {
         let configuration: Configuration
         let on: Bool
+        let size: CGFloat
         @State private var hovering = false
         @Environment(\.isFocused) private var focused
 
         var body: some View {
             configuration.label
-                .font(ZenFont.text(12.5, on ? .semibold : .medium))
+                .font(ZenFont.text(size, on ? .semibold : .medium))
                 .foregroundStyle(on || hovering ? Color.zen.textHeading : Color.zen.textBody)
                 .background {
                     if on { Capsule().fill(Color.zen.surfaceRaised).modifier(ZenLift()) }

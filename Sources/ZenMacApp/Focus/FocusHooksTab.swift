@@ -10,24 +10,30 @@ struct FocusHooksTab: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ZenSpace.s4) {
-            Text("Every hook runs when a block starts and again when it ends, all at once. One that fails never stops focus; its chip says so.")
+        VStack(alignment: .leading, spacing: ZenSpace.s5) {
+            Text("Every hook runs when a block starts and again when it ends, all at once. One that fails never stops focus; its card says so.")
                 .zenType(.body).foregroundStyle(Color.zen.textBody)
                 .frame(maxWidth: 680, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 360), spacing: ZenSpace.s4, alignment: .top)], spacing: ZenSpace.s4) {
-                DNDSetup()
-                SlackSetup()
-                CalendarSetup()
-                WebhookSetup()
-                WorkHoursCard()
-            }
+            pair { DNDSetup() } and: { SlackSetup() }
+            pair { CalendarSetup() } and: { WebhookSetup() }
+            WorkHoursCard()
         }
+    }
+
+    /// Two cards side by side, the same height.
+    private func pair<A: View, B: View>(@ViewBuilder _ a: () -> A, @ViewBuilder and b: () -> B) -> some View {
+        HStack(alignment: .top, spacing: ZenSpace.s4) {
+            a().frame(maxWidth: .infinity, maxHeight: .infinity)
+            b().frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
-/// The frame every hook card shares: an icon, the name, a status line, then its own controls.
-private struct HookCard<Content: View>: View {
+/// The frame every hook card shares: an icon, the name and whether it's ready (a symbol and words,
+/// never colour alone), then its own controls, then (for most) its switch, labelled, at the foot.
+struct HookCard<Content: View>: View {
     let symbol: String
     let name: String
     let status: String
@@ -35,26 +41,81 @@ private struct HookCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ZenSpace.s3) {
+        VStack(alignment: .leading, spacing: ZenSpace.s4) {
             HStack(spacing: ZenSpace.s3) {
-                Image(systemName: symbol).font(.system(size: 18, weight: .medium)).foregroundStyle(Color.zen.textBrand)
-                    .frame(width: 36, height: 36)
-                    .background(RoundedRectangle(cornerRadius: ZenRadius.sm, style: .continuous).fill(Color.zen.surfaceTint))
-                VStack(alignment: .leading, spacing: 2) {
+                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Color.zen.textBrand)
+                    .frame(width: 40, height: 40)
+                    .background(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous).fill(Color.zen.surfaceTint))
+                VStack(alignment: .leading, spacing: 3) {
                     Text(name).font(ZenFont.text(15, .semibold)).foregroundStyle(Color.zen.textHeading)
-                    HStack(spacing: 6) {
-                        Circle().fill(ready ? Color.zen.brandFill : Color.zen.textCaption.opacity(0.5)).frame(width: 7, height: 7)
-                        Text(status).zenType(.caption).foregroundStyle(Color.zen.textCaption)
+                    HStack(spacing: 5) {
+                        Image(systemName: ready ? "checkmark.circle.fill" : "circle.dashed")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(ready ? Color.zen.textBrand : Color.zen.textCaption)
+                        Text(status).font(ZenFont.text(12.5, ready ? .medium : .regular))
+                            .foregroundStyle(ready ? Color.zen.textBrand : Color.zen.textCaption)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
             content
         }
         .padding(ZenSpace.s5)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .glassCard(radius: ZenRadius.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .glassCard(radius: ZenRadius.widget)
+    }
+}
+
+/// A hook's on/off, at the foot of its card: a hairline, the words, the switch.
+struct HookSwitchRow: View {
+    let label: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        VStack(spacing: ZenSpace.s3) {
+            Spacer(minLength: 0)
+            Rectangle().fill(Color.zen.borderHairline).frame(height: 1)
+            HStack(spacing: ZenSpace.s3) {
+                Text(label).font(ZenFont.text(13, .medium)).foregroundStyle(Color.zen.textHeading)
+                    .accessibilityHidden(true)
+                Spacer(minLength: ZenSpace.s2)
+                Text(isOn ? "On" : "Off").font(ZenFont.text(12)).foregroundStyle(Color.zen.textCaption)
+                    .accessibilityHidden(true)
+                Toggle(label, isOn: $isOn).toggleStyle(.switch).labelsHidden().controlSize(.small)
+                    .tint(Color.zen.brandFill)
+                    .accessibilityLabel(label)
+                    .help(label)
+            }
+            .frame(minHeight: 28)
+        }
+    }
+}
+
+/// A text field in the app's style: a raised well with an outline that turns green while typing.
+struct HookField: View {
+    let placeholder: String
+    @Binding var text: String
+    var secure = false
+    let label: String
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        Group {
+            if secure { SecureField(placeholder, text: $text) } else { TextField(placeholder, text: $text) }
+        }
+        .textFieldStyle(.plain)
+        .font(ZenFont.text(13))
+        .foregroundStyle(Color.zen.textHeading)
+        .focused($focused)
+        .padding(.horizontal, ZenSpace.s3)
+        .frame(height: 38)
+        .background(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous).fill(Color.zen.surfaceRaised))
+        .overlay(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous)
+            .strokeBorder(focused ? Color.zen.textBrand : Color.zen.borderOutline, lineWidth: focused ? 1.5 : 1))
+        .accessibilityLabel(label)
     }
 }
 
@@ -84,19 +145,18 @@ private struct DNDSetup: View {
                     step(3, "Make “\(ShortcutsDNDHook.offShortcut)”: Set Focus, turn Do Not Disturb Off.")
                 }
             }
-            HStack(spacing: ZenSpace.s2) {
+            HStack(spacing: ZenSpace.s4) {
                 if !ready {
                     Button("Open Shortcuts") { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app")) }
                         .buttonStyle(ZenSecondaryButtonStyle())
                 }
-                Button("Check again") { Task { await check() } }.buttonStyle(ZenLinkButtonStyle())
                 if ready {
-                    Button(testing ? "Testing…" : "Test") { Task { await test() } }.buttonStyle(ZenLinkButtonStyle()).disabled(testing)
+                    Button(testing ? "Testing…" : "Test it") { Task { await test() } }.buttonStyle(ZenSecondaryButtonStyle()).disabled(testing)
                 }
-                Spacer(minLength: 0)
-                FocusToggle(key: FocusSettings.dndKey, label: "Use Do Not Disturb")
+                Button("Check again") { Task { await check() } }.buttonStyle(ZenLinkButtonStyle())
             }
             if let result { Text(result).zenType(.caption).foregroundStyle(Color.zen.textCaption) }
+            FocusToggle(key: FocusSettings.dndKey, label: "Do Not Disturb while I focus")
         }
         .task { await check() }
     }
@@ -136,25 +196,23 @@ private struct SlackSetup: View {
             if saved {
                 Text("While you focus: “Focusing until 12:00” and notifications paused. Both expire on their own.")
                     .zenType(.caption).foregroundStyle(Color.zen.textCaption).fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: ZenSpace.s2) {
-                    Button("Disconnect") { FocusSecrets.shared.set(nil, FocusSecrets.slackToken); saved = false; who = nil }
-                        .buttonStyle(ZenLinkButtonStyle())
-                    Spacer(minLength: 0)
-                    FocusToggle(key: FocusSettings.slackKey, label: "Use Slack")
-                }
+                Button("Disconnect") { FocusSecrets.shared.set(nil, FocusSecrets.slackToken); saved = false; who = nil }
+                    .buttonStyle(ZenLinkButtonStyle())
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     step(1, "api.slack.com/apps › your ZenMode OS app › OAuth & Permissions.")
                     step(2, "Copy the User OAuth Token and paste it here. It stays in this Mac's Keychain.")
                 }
                 HStack(spacing: ZenSpace.s2) {
-                    SecureField("xoxp-…", text: $token).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
-                        .accessibilityLabel("Slack user token")
+                    HookField(placeholder: "xoxp-…", text: $token, secure: true, label: "Slack user token")
+                        .frame(maxWidth: 280)
+                        .onSubmit { if token.hasPrefix("xox") { Task { await connect() } } }
                     Button(busy ? "Checking…" : "Connect") { Task { await connect() } }
                         .buttonStyle(ZenPrimaryButtonStyle()).disabled(busy || !token.hasPrefix("xox"))
                 }
             }
             if let error { Text(error).zenType(.caption).foregroundStyle(Color.zen.scoreDeduct) }
+            if saved { FocusToggle(key: FocusSettings.slackKey, label: "Slack status while I focus") }
         }
         .task { if saved { await whoAmI() } }
     }
@@ -209,20 +267,20 @@ private struct CalendarSetup: View {
                  status: connected ? "Ready: a busy “Focus” event for each block" : "Connect your calendar", ready: connected) {
             Text("Through macOS Calendar: add your Google account there and the block shows in Google Calendar too.")
                 .zenType(.caption).foregroundStyle(Color.zen.textCaption).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: ZenSpace.s2) {
-                if connected {
+            if connected {
+                HStack(spacing: ZenSpace.s3) {
+                    Text("Add blocks to").font(ZenFont.text(13)).foregroundStyle(Color.zen.textBody)
                     Picker("Calendar", selection: $calendarId) {
                         Text("Default calendar").tag("")
                         ForEach(calendars, id: \.id) { c in Text("\(c.title) · \(c.source)").tag(c.id) }
                     }
                     .labelsHidden().frame(maxWidth: 240)
                     .accessibilityLabel("Calendar for focus blocks")
-                } else {
-                    Button("Connect calendar") { Task { await model.calendarLink.connect() } }.buttonStyle(ZenPrimaryButtonStyle())
                 }
-                Spacer(minLength: 0)
-                FocusToggle(key: FocusSettings.calendarKey, label: "Add focus blocks")
+            } else {
+                Button("Connect calendar") { Task { await model.calendarLink.connect() } }.buttonStyle(ZenPrimaryButtonStyle())
             }
+            FocusToggle(key: FocusSettings.calendarKey, label: "Focus blocks on my calendar")
         }
     }
 }
@@ -243,14 +301,13 @@ private struct WebhookSetup: View {
             Text("POST {event, session_id, start_at, until, kept, source}, signed X-ZenMode-Signature: sha256=HMAC. No name, no email, no apps.")
                 .zenType(.caption).foregroundStyle(Color.zen.textCaption).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: ZenSpace.s2) {
-                TextField("https://…", text: $draft).textFieldStyle(.roundedBorder)
-                    .accessibilityLabel("Webhook URL")
+                HookField(placeholder: "https://…", text: $draft, label: "Webhook URL")
                     .onSubmit(save)
-                Button("Save", action: save).buttonStyle(ZenPrimaryButtonStyle())
-                    .disabled(URL(string: draft).map(Webhook.isAllowed) != true)
+                Button(draft == url && !url.isEmpty ? "Saved" : "Save", action: save).buttonStyle(ZenSecondaryButtonStyle())
+                    .disabled(draft == url || URL(string: draft).map(Webhook.isAllowed) != true)
             }
             if let secret {
-                HStack(spacing: ZenSpace.s2) {
+                HStack(spacing: ZenSpace.s4) {
                     Text(showSecret ? secret : String(repeating: "•", count: 16)).font(ZenFont.number(11)).foregroundStyle(Color.zen.textBody)
                         .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
                     Button(showSecret ? "Hide" : "Show secret") { showSecret.toggle() }.buttonStyle(ZenLinkButtonStyle())
@@ -259,7 +316,7 @@ private struct WebhookSetup: View {
                         NSPasteboard.general.setString(secret, forType: .string)
                     }.buttonStyle(ZenLinkButtonStyle())
                     Spacer(minLength: 0)
-                    if ready { Button("Send test") { Task { await test() } }.buttonStyle(ZenLinkButtonStyle()) }
+                    if ready { Button("Send a test") { Task { await test() } }.buttonStyle(ZenLinkButtonStyle()) }
                 }
             }
             if let result { Text(result).zenType(.caption).foregroundStyle(Color.zen.textCaption) }
@@ -304,8 +361,6 @@ private struct FocusToggle: View {
     }
 
     var body: some View {
-        Toggle(label, isOn: $on).toggleStyle(.switch).labelsHidden().controlSize(.small)
-            .accessibilityLabel(label)
-            .help(label)
+        HookSwitchRow(label: label, isOn: $on)
     }
 }
