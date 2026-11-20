@@ -13,6 +13,9 @@ final class FakeHook: FocusHook, @unchecked Sendable {
     private let lock = NSLock()
     private var _calls: [String] = []
     var calls: [String] { lock.withLock { _calls } }
+    private var _finished = false
+    /// A hang that ignores cancellation got to its end.
+    var finished: Bool { lock.withLock { _finished } }
     /// Shared by hooks in one test: how many were inside a call at once, at most.
     let gauge: Gauge?
 
@@ -53,6 +56,7 @@ final class FakeHook: FocusHook, @unchecked Sendable {
             await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
                 DispatchQueue.global().asyncAfter(deadline: .now() + 10) { c.resume() }
             }
+            lock.withLock { _finished = true }
         default: break
         }
     }
@@ -108,11 +112,11 @@ struct HookRunnerTests {
 
     @Test("The timeout holds even when a hook ignores cancellation")
     func timeoutIgnoringCancel() async {
-        let clock = ContinuousClock()
-        let start = clock.now
-        let out = await fast.start(session(), hooks: [FakeHook("stuck", .hangsIgnoringCancel)])
-        // The hook holds on for 10 s; the runner answers at its 150 ms deadline, long before.
-        #expect(clock.now - start < .seconds(5))
+        let stuck = FakeHook("stuck", .hangsIgnoringCancel)
+        let out = await fast.start(session(), hooks: [stuck])
+        // The hook holds on for 10 s whatever happens; the runner has already answered without it
+        // (no wall-clock bound, so a busy CI runner can't make this flaky).
+        #expect(!stuck.finished)
         #expect(out.first?.state == .failed)
         #expect(out.first?.note == "Took too long")
     }

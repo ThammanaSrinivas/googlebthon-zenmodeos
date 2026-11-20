@@ -55,7 +55,8 @@ final class Collected<Value: Sendable>: @unchecked Sendable {
 
     /// Waits (briefly) until `count` values have arrived.
     func wait(for count: Int) async -> [Value] {
-        let deadline = ContinuousClock.now + .seconds(2)
+        // Returns as soon as `count` arrive; the long limit only matters on a busy CI runner.
+        let deadline = ContinuousClock.now + .seconds(15)
         while values.count < count, ContinuousClock.now < deadline { try? await Task.sleep(for: .milliseconds(5)) }
         return values
     }
@@ -186,7 +187,8 @@ struct FakeSyncTests {
         _ = await updates.wait(for: 1)
         #expect(await sync.subscriberCount == 1)
         updates.cancel()
-        let deadline = ContinuousClock.now + .seconds(2)
+        // Returns as soon as `count` arrive; the long limit only matters on a busy CI runner.
+        let deadline = ContinuousClock.now + .seconds(15)
         while await sync.subscriberCount > 0, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
         #expect(await sync.subscriberCount == 0)
     }
