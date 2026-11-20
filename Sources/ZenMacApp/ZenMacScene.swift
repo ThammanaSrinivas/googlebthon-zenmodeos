@@ -22,7 +22,7 @@ public struct ZenMacScene: Scene {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 1120, height: 720)
+        .defaultSize(width: 1360, height: 880)
     }
 }
 

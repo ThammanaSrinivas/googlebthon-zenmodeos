@@ -1,6 +1,7 @@
 import SwiftUI
 import Albeit
 import ZenAPI
+import MacUsage
 
 /// The app's state. Views read this and call its intents; they never see a service.
 @MainActor
@@ -30,21 +31,32 @@ final class AppModel {
     private(set) var lastNudge: (ZenoNudge, NudgeSource)?
 
     let notch = NotchModel()
+    /// Today's dashboard: the day picked, the open pattern card, the search.
+    let dashboard = DashboardModel()
     let frontmost = FrontmostTracker()
-    let services = Services.make()
+    /// The fakes until launch, then whatever the app target chose (`ZenMacBackend`).
+    private(set) var services: Services = .fakes()
     var isDemo: Bool { services.isDemo }
 
     private var pairTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
 
     func start() {
+        services = ZenMacBackend.make()
         AppNap.holdOff()
         frontmost.start()
         Task {
             try? await Task.sleep(for: .milliseconds(700))
             notch.speak(.init(feeling: .happy, kicker: Copy.Hello.kicker, line: Copy.Hello.line), hold: .seconds(3.2), respectQuiet: false)
         }
-        Task { snapshot = try? await services.scores.today() }
+        followScore()
+        Task {
+            if let person = await services.auth.currentUser() {
+                user = person
+                startDaySync()
+            }
+        }
+        startWeekAndCalendar()
     }
 
     // MARK: Onboarding
@@ -70,6 +82,7 @@ final class AppModel {
 
     func finishOnboarding() {
         notch.quiet = profile.quiet
+        preferences.values.quiet = profile.quiet
         withAnimation(ZenMotion.container) { stage = .today }
         Task { await refreshNudge(trigger: .hello) }
     }
@@ -211,6 +224,7 @@ final class AppModel {
     private func paired(_ person: ZenUser) {
         user = person
         pairState = .paired
+        startDaySync()
         go(.handoff)
     }
 
@@ -226,6 +240,13 @@ final class AppModel {
     // MARK: Today
 
     func refreshNudge(trigger: NudgeContext.Trigger) async {
+        let moment: PreferenceValues.Moment? = switch trigger {
+        case .pickup: .pickup
+        case .checkIn: .checkIn
+        case .goodDay: .goodDay
+        case .hello: nil
+        }
+        if let moment, !preferences.spend(moment) { return }
         let snap: ScoreSnapshot? = if let snapshot { snapshot } else { try? await services.scores.today() }
         snapshot = snap
         let hour = Calendar.current.component(.hour, from: Date())
@@ -234,5 +255,142 @@ final class AppModel {
         let result = await services.nudges.nudge(for: context)
         lastNudge = result
         notch.speak(result.0, kicker: result.1 == .gemini ? "Zeno · Gemini" : "Zeno")
+    }
+
+    // MARK: Week and calendar
+
+    /// The person's calendar on this Mac. Zeno stays quiet in busy events.
+    let calendarLink = CalendarLink()
+    private(set) var streak: StreakCalendar?
+    private(set) var review: (WeeklyReview, NudgeSource)?
+    private(set) var reviewLoading = false
+    /// The Today toast for a new review was read or closed.
+    var reviewSeen = false
+    private var headsUpGiven: Set<String> = []
+    // TODO(buildathon): ZenCorePrivate's weekly review callable (Gemini Pro) once the private package lands.
+    private let reviews = ResilientReviews(service: FakeReviews())
+
+    /// Zeno's settings, saved on this Mac.
+    let preferences = ZenPreferences()
+    /// The tools the person (or their workspace) connected.
+    let integrations = IntegrationsModel()
+
+    func startWeekAndCalendar() {
+        // Zeno keeps quiet when switched off, and inside busy events if the person asked for that.
+        notch.isBusy = { [calendarLink, preferences] date in
+            !preferences.values.zenoInNotch || (preferences.values.quietInCalendarEvents && calendarLink.isBusy(at: date))
+        }
+        profile.quiet = preferences.values.quiet
+        notch.quiet = preferences.values.quiet
+        streak = StreakCalendar(records: WeekDemo.history(today: Date(), calendar: .current), today: Date(), calendar: .current)
+        Task { await loadReview() }
+        Task { await watchCalendar() }
+    }
+
+    func loadReview() async {
+        reviewLoading = true
+        let result = await reviews.review(for: WeekDemo.recap)
+        withAnimation(ZenMotion.container) {
+            review = result
+            reviewLoading = false
+            reviewSeen = false
+        }
+        if stage == .today, preferences.spend(.weeklyReview) {
+            notch.speak(.init(feeling: .pleasant, kicker: "Weekly review", line: "Your week, read. It's on Today."), hold: .seconds(3.4))
+        }
+    }
+
+    func connectCalendar() {
+        Task {
+            await calendarLink.connect()
+            calendarLink.refresh()
+        }
+    }
+
+    /// Every half minute: a heads-up in the notch 10 minutes before a busy event, once per event.
+    private func watchCalendar() async {
+        while !Task.isCancelled {
+            calendarLink.refresh()
+            let now = Date()
+            if stage == .today, let next = calendarLink.nextBusy(after: now),
+               next.start.timeIntervalSince(now) <= 10 * 60, !headsUpGiven.contains(next.id) {
+                headsUpGiven.insert(next.id)
+                guard preferences.spend(.calendar) else { try? await Task.sleep(for: .seconds(30)); continue }
+                let time = next.start.formatted(date: .omitted, time: .shortened)
+                notch.speak(.init(feeling: .pleasant, kicker: "Calendar · \(time)", line: "Busy at \(time). I'll keep quiet then."), hold: .seconds(4))
+            }
+            try? await Task.sleep(for: .seconds(30))
+        }
+    }
+
+    // MARK: Score and day sync
+
+    private var scoreTask: Task<Void, Never>?
+    private var usage: MacUsageMonitor?
+    private var daySync: MacDaySync?
+    private var foreground: NSObjectProtocol?
+
+    /// The live score: a listener on the real backend (the same number on the iPhone and this Mac
+    /// within seconds), a 30 s poll on the fakes.
+    private func followScore() {
+        scoreTask?.cancel()
+        let scores = services.scores
+        scoreTask = Task { [weak self] in
+            for await next in scores.updates() {
+                guard let self else { return }
+                withAnimation(ZenMotion.container) { self.snapshot = next }
+            }
+        }
+    }
+
+    /// After sign-in: measure this Mac's distracting minutes and pull-backs and publish them. Today
+    /// goes out throttled, at once when the app comes forward, and each finished day forced.
+    func startDaySync() {
+        guard daySync == nil else { daySync?.flush(); return }
+        let monitor = MacUsageMonitor()
+        let sync = MacDaySync(days: services.days, builder: ComputerDayReportBuilder(store: UserDefaultsKeyValueStore()), clock: SystemClock())
+        monitor.start()
+        monitor.publish(to: sync)
+        usage = monitor
+        daySync = sync
+        foreground = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.daySync?.flush() }
+        }
+    }
+
+    /// Where this Mac's day stands, for Settings.
+    var daySyncStatus: MacDaySync.Status? { daySync?.status }
+
+    func signOut() {
+        Task {
+            try? await services.auth.signOut()
+            usage?.stop()
+            usage = nil
+            daySync = nil
+            if let foreground { NotificationCenter.default.removeObserver(foreground) }
+            foreground = nil
+            user = nil
+            pairState = .waiting
+        }
+    }
+
+    // MARK: Settings
+
+    func setQuiet(_ quiet: QuietHours) {
+        preferences.values.quiet = quiet
+        profile.quiet = quiet
+        notch.quiet = quiet
+    }
+
+    /// Settings › Test: the real notch speaks now, whatever the hour.
+    func testZeno(_ feeling: ZenoFeeling) {
+        let lines: [ZenoFeeling: String] = [.happy: "Good day locked in. Nice.", .pleasant: "Stretch? You've been at it a while.",
+                                            .curious: "Back again. Something on purpose?", .proud: "Week won. That's ten in a row.",
+                                            .sleepy: "Bedtime soon. Last scroll?"]
+        notch.speak(.init(feeling: feeling, kicker: "ZenMode · test", line: lines[feeling] ?? "Hi, I'm Zeno."), hold: .seconds(3.4), respectQuiet: false)
+    }
+
+    func replayOnboarding() {
+        withAnimation(ZenMotion.container) { stage = .onboarding(.story) }
     }
 }

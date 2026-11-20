@@ -240,3 +240,28 @@ enum ZenoRenderer {
         return t * t * (3 - 2 * t)
     }
 }
+
+/// Zeno holding one feeling, drawn once: no clock, no blinking. For places where many Zenos sit
+/// side by side (the card deck, the nudge list) and for images rendered to share.
+public struct ZenoStill: View {
+    public var feeling: ZenoFeeling
+
+    public init(_ feeling: ZenoFeeling) { self.feeling = feeling }
+
+    public var body: some View {
+        let state = ZenoAnimator(feeling: feeling).sample(at: 0)
+        GeometryReader { geo in
+            Canvas { ctx, size in
+                let inner = CGSize(width: size.width / ZenoView.overscan, height: size.height / ZenoView.overscan)
+                let box = CGRect(x: (size.width - inner.width) / 2, y: (size.height - inner.height) / 2,
+                                 width: inner.width, height: inner.height)
+                ZenoRenderer.draw(&ctx, in: box, state: state)
+            }
+            .frame(width: geo.size.width * ZenoView.overscan, height: geo.size.height * ZenoView.overscan)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+        }
+        .aspectRatio(ZenoView.aspectRatio, contentMode: .fit)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}

@@ -6,12 +6,18 @@ import SwiftUI
 @MainActor
 final class NotchPanelController {
     private let panel: NotchPanel
+    private let model: NotchModel
+    /// The notch the shape was drawn for (the view keeps the one it launched with).
+    private let notch: CGSize
+    private var hoverTimer: Timer?
     static let size = CGSize(width: 560, height: 220)
 
     init(model: NotchModel) {
+        self.model = model
         panel = NotchPanel(contentRect: CGRect(origin: .zero, size: Self.size))
         let screen = Self.notchedScreen()
         let notch = Self.notchSize(on: screen)
+        self.notch = notch
         let host = NSHostingView(rootView: NotchView(model: model, notch: notch))
         host.sizingOptions = []
         panel.contentView = host
@@ -20,6 +26,44 @@ final class NotchPanelController {
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.place(on: Self.notchedScreen()) }
         }
+        watchOpen()
+    }
+
+    // MARK: Hover: fade, and let clicks through
+
+    /// The panel ignores the mouse, so it can't see hover. While the shape is open, the pointer's
+    /// position is checked against it 30 times a second; closed, nothing runs.
+    private func watchOpen() {
+        withObservationTracking { _ = model.isOpen } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.openChanged()
+                self?.watchOpen()
+            }
+        }
+    }
+
+    private func openChanged() {
+        hoverTimer?.invalidate()
+        hoverTimer = nil
+        guard model.isOpen else {
+            if model.pointerOver { model.pointerOver = false }
+            return
+        }
+        checkPointer()
+        hoverTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkPointer() }
+        }
+    }
+
+    private func checkPointer() {
+        let open = NotchView.openSize(notch: notch, hasDetail: model.moment.detail != nil)
+        let f = panel.frame
+        let shape = CGRect(x: f.midX - open.width / 2, y: f.maxY - open.height, width: open.width, height: open.height)
+        var inside = shape.insetBy(dx: -6, dy: -6).contains(NSEvent.mouseLocation)
+        #if DEBUG
+        inside = inside || model.debugHover
+        #endif
+        if inside != model.pointerOver { model.pointerOver = inside }
     }
 
     private func place(on screen: NSScreen?) {

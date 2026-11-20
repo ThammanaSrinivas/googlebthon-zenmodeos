@@ -75,6 +75,11 @@ public struct ZenPalette: Sendable {
     public let scoreGain = Color(light: 0x0F7A18, dark: 0x5BDF62)
     public let scoreDeduct = Color(light: 0xB34700, dark: 0xFF8A3D)
     public let ember = Color(hex: 0xFF6600)
+    // How time felt (the Bloom palette, the same on every visual): gold focus, green on purpose,
+    // rust unplanned.
+    public let feelFocus = Color(light: 0xE2B000, dark: 0xFFC800)
+    public let feelIntentional = Color(light: 0x2AA136, dark: 0x5BDF62)
+    public let feelUnintentional = Color(light: 0xD9541E, dark: 0xFF8A3D)
     // The black of the notch and the Island
     public let island = Color(hex: 0x000000)
     public let islandText = Color(hex: 0xF5F5F1)

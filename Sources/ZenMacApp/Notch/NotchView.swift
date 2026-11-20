@@ -10,10 +10,17 @@ struct NotchView: View {
     let notch: CGSize
 
     static let openWidth: CGFloat = 376
+    /// How faint the shape gets while the pointer is over it.
+    static let hoverOpacity: Double = 0.14
+
+    /// The open shape's size under a notch of `notch`.
+    static func openSize(notch: CGSize, hasDetail: Bool) -> CGSize {
+        CGSize(width: openWidth, height: notch.height + (hasDetail ? 108 : 92))
+    }
 
     var body: some View {
         let top = notch.height
-        let openHeight = top + (model.moment.detail == nil ? 92 : 108)
+        let openHeight = Self.openSize(notch: notch, hasDetail: model.moment.detail != nil).height
         let width = model.isOpen ? Self.openWidth : notch.width
         let height = model.isOpen ? openHeight : notch.height
         let radius: CGFloat = model.isOpen ? 28 : 10
@@ -28,6 +35,8 @@ struct NotchView: View {
             .frame(width: width, height: height, alignment: .top)
             .clipShape(shape)
             .shadow(color: .black.opacity(model.isOpen ? 0.32 : 0), radius: 26, y: 14)
+            .opacity(model.isOpen && model.pointerOver ? Self.hoverOpacity : 1)
+            .animation(ZenMotion.calm(ZenMotion.t2), value: model.pointerOver)
             Spacer(minLength: 0)
         }
         .frame(width: NotchPanelController.size.width, height: NotchPanelController.size.height, alignment: .top)

@@ -19,9 +19,18 @@ final class NotchModel {
     private(set) var zenoIn = false
     private(set) var wordsIn = false
     private(set) var replay = 0
+    /// The pointer is over the open shape: it fades so the screen under it shows, and clicks go
+    /// through to it (the panel never takes a click).
+    var pointerOver = false
+    #if DEBUG
+    /// Debug tours: render the shape as if the pointer were over it.
+    var debugHover = false
+    #endif
 
     /// Class or work hours plus the night. Outside onboarding, Zeno says nothing inside them.
     var quiet: QuietHours = .none
+    /// A busy event on a connected calendar: Zeno stays quiet then too (set by the calendar section).
+    var isBusy: @MainActor (Date) -> Bool = { _ in false }
     var reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
     private var task: Task<Void, Never>?
@@ -30,7 +39,8 @@ final class NotchModel {
     /// Returns false when quiet hours kept Zeno silent.
     @discardableResult
     func speak(_ next: Moment, hold: Duration? = .seconds(4), respectQuiet: Bool = true) -> Bool {
-        if respectQuiet && quiet.isQuiet(at: Date(), calendar: .current) { return false }
+        let now = Date()
+        if respectQuiet && (quiet.isQuiet(at: now, calendar: .current) || isBusy(now)) { return false }
         task?.cancel()
         task = Task { [weak self] in await self?.run(next, hold: hold) }
         return true

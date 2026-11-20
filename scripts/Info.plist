@@ -22,6 +22,8 @@
 	<string>26.0</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Zeno goes quiet during your classes and meetings, and gives you a heads-up before they start. Events stay on this Mac.</string>
 	<key>NSAppSleepDisabled</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
