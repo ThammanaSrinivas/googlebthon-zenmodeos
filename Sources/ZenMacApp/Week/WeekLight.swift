@@ -67,7 +67,7 @@ struct WeekLight: View {
         radial(&ctx, at: CGPoint(x: w * (0.15 + 0.7 * drift), y: h * 0.05), radius: w * 0.75, color: ink.mint, alpha: ink.dark ? 0.16 : 0.34)
         // The calmest day lights the sky above it.
         if let best = points.max(by: { $0.1 < $1.1 }) {
-            radial(&ctx, at: plot.point(best.0, best.1), radius: max(w, h) * 0.62, color: ink.green, alpha: ink.dark ? 0.3 : 0.4)
+            radial(&ctx, at: plot.point(best.0, best.1), radius: max(w, h) * 0.62, color: ink.green, alpha: ink.dark ? 0.3 : 0.48)
         }
         if let wonOn, days.indices.contains(wonOn), let s = days[wonOn] {
             radial(&ctx, at: plot.point(wonOn, s), radius: max(w, h) * 0.42, color: ink.amber, alpha: ink.dark ? 0.34 : 0.46)
@@ -89,7 +89,7 @@ struct WeekLight: View {
             let rect = CGRect(x: p.x - width / 2, y: p.y, width: width, height: size.height - p.y)
             let color = i == wonOn ? ink.amber : ink.green
             ctx.fill(Path(roundedRect: rect, cornerRadius: width / 2), with: .linearGradient(
-                Gradient(colors: [color.opacity(ink.dark ? 0.42 : 0.5), color.opacity(0)]),
+                Gradient(colors: [color.opacity(ink.dark ? 0.42 : 0.58), color.opacity(0)]),
                 startPoint: CGPoint(x: p.x, y: p.y), endPoint: CGPoint(x: p.x, y: size.height)))
         }
     }
@@ -102,7 +102,7 @@ struct WeekLight: View {
         for k in 1...plot.echoes {
             let fade = 1 - Double(k) / Double(plot.echoes + 1)
             ctx.stroke(curve.offsetBy(dx: 0, dy: plot.echoGap * CGFloat(k)),
-                       with: .color(ink.green.opacity((ink.dark ? 0.34 : 0.3) * fade)), lineWidth: 1)
+                       with: .color(ink.green.opacity((ink.dark ? 0.34 : 0.4) * fade)), lineWidth: 1)
         }
         var area = curve
         area.addLine(to: CGPoint(x: pts.last!.x, y: size.height))

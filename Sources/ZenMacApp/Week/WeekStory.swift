@@ -140,24 +140,24 @@ struct RecapOverlay: View {
 
     private func sheet(_ entry: RecapEntry, index: Int) -> some View {
         let shape = RoundedRectangle(cornerRadius: ZenRadius.xxxl, style: .continuous)
-        return ScrollView {
-            VStack(alignment: .leading, spacing: ZenSpace.s6) {
-                header(entry, index: index)
-                HStack(alignment: .top, spacing: ZenSpace.s8) {
-                    RecapStory(entry: entry)
-                        .frame(width: 300, height: 520)
-                        .focused($focus, equals: .story)
-                    RecapNumbers(entry: entry, focus: $focus)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+        let content = VStack(alignment: .leading, spacing: ZenSpace.s6) {
+            header(entry, index: index)
+            HStack(alignment: .top, spacing: ZenSpace.s8) {
+                RecapStory(entry: entry)
+                    .frame(width: 300, height: 520)
+                    .focused($focus, equals: .story)
+                RecapNumbers(entry: entry, focus: $focus)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(ZenSpace.s8)
-            .id(entry.id)
         }
-        .scrollIndicators(.hidden)
-        .scrollBounceBehavior(.basedOnSize)
+        .padding(ZenSpace.s8)
+        .id(entry.id)
+        // Its own height when the window has room; a scroll when it doesn't.
+        return ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }.scrollIndicators(.hidden)
+        }
         .frame(maxWidth: 1080)
-        .fixedSize(horizontal: false, vertical: true)
         .background {
             shape.fill(Color.zen.surfaceRaised)
                 .overlay(alignment: .topLeading) {
