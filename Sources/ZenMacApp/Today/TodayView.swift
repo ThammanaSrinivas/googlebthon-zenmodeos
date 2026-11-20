@@ -39,6 +39,11 @@ struct TodayView: View {
             }
         }
         .ignoresSafeArea()
+        .onChange(of: model.navigate) { _, target in
+            guard let target else { return }
+            withAnimation(ZenMotion.container) { section = target }
+            model.navigate = nil
+        }
         #if DEBUG
         // Debug renders: ZEN_SECTION=week opens that section (see scripts/snapshot-tour.sh).
         .onAppear {
@@ -88,8 +93,10 @@ struct TodayView: View {
                 .padding(.bottom, ZenSpace.s2)
                 .animation(ZenMotion.container, value: model.reviewSeen)
                 .animation(ZenMotion.container, value: model.review?.0)
-            SidebarCalendarCard { section = .calendar }
-                .padding(.bottom, ZenSpace.s2)
+            if section != .calendar {
+                SidebarCalendarCard { section = .calendar }
+                    .padding(.bottom, ZenSpace.s2)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(model.user?.displayName ?? "Exploring").font(ZenFont.text(13, .semibold)).foregroundStyle(Color.zen.textHeading)
                 HStack(spacing: 6) {

@@ -2,114 +2,165 @@ import SwiftUI
 import Albeit
 import ZenAPI
 
-/// Words on the Week and Calendar sections, named once.
+/// Words on the Week section, named once.
 enum WeekCopy {
     static let eyebrow = "The weekly streak"
     static let titleTop = "Four good days"
     static let titleBottom = "wins the week."
     static let lede = "A good day is a Zen Score above 6.0. Win four, Monday to Sunday, and the week is yours."
-    static let reviewEyebrow = "Weekly review · Gemini"
+    static let weekStreak = "week streak"
+    static func best(_ best: Int, canMake: Int?) -> String {
+        canMake.map { "Best \(best) · this week can make it \($0)" } ?? "Best \(best) · this week is won"
+    }
+    static let twelveWeeks = "12 weeks"
+    static let legendGood = "Good day"
+    static let legendUnder = "Under 6.0"
+    static let legendWon = "Won week"
+    static let share = "Share streak"
+    static let shareHint = "Shares a picture of your streak. Scores only, never minutes or apps."
+    static let demoHistory = "Demo history"
+    static let screens = "Across your screens"
+    static let iPhoneLine = "Score only"
+
+    static let exploreTitle = "Explore your week"
+    static let exploreLede = "Gemini reads your scores, never your apps."
+    static let reviewEyebrow = "Weekly review"
+    static let reviewSourceGemini = "GEMINI"
+    static let reviewSourceHere = "WRITTEN HERE"
     static let reviewLoading = "Zeno's reading your week…"
     static let tryThis = "Try this week"
+    static let askAgain = "Write it again"
+    static let askEyebrow = "Ask about your week"
+    static let askHint = "Gemini answers from your scores"
+    static let askThinking = "Zeno's thinking…"
+    static let askEmpty = "Pick a question. Answers come from your scores and this Mac's minutes, never from your apps or your iPhone's time."
+    static let askFromGemini = "Gemini · from your scores only"
+    static let askFromHere = "Written here: Gemini didn't answer in time"
+    static let askFallback = "I can't read the week right now. Your scores are safe; ask again in a moment."
     static let fromGemini = "Written by Gemini from your scores alone"
     static let fromHere = "Written here from your scores: Gemini didn't answer in time"
-    static let askAgain = "Write it again"
-    static let acrossDevices = "Across your screens"
-    static let iPhoneLine = "Score only"
-    static let share = "Share streak"
+
+    static let recapsTitle = "Past recaps"
+    static let recapsLede = "Your week in Zen, every Monday."
+    static let viewAll = "View all"
+    static let viewAllHint = "Opens every week on record"
+    static let noRecaps = "Your first recap arrives on Monday."
+    static let noScores = "No scores that week."
+    static let recapsPageTitle = "Recaps"
+    static let recapsPageLede = "Every week on record, newest first. Pick one to read it."
+    static let backToWeek = "Week"
+    static let backHint = "Back to Week"
+    static let coverTitle = "Your week in Zen"
+    static let latest = "Latest"
+    static let won = "Won"
+    static let avg = "AVG"
+    static let average = "Average"
+    static let tryNext = "Try next week"
+    static let shareWeek = "Share this week"
     static let toastAction = "Read it"
 }
 
-/// Week: the streak as a calendar of weeks, this week's days, Gemini's review, and each screen's part.
+/// Week: the hero (this week and the streak), Explore (Gemini's review and set questions), and the
+/// recaps of past weeks, with every week on record a page away.
 struct WeekView: View {
+    enum Page: Equatable { case week, recaps }
+
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var page: Page = .week
+    @State private var selectedRecap: Date?
+    @State private var ask = WeekAskModel()
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: ZenSpace.s5) {
-                header
-                HStack(alignment: .top, spacing: ZenSpace.s4) {
-                    if let streak = model.streak {
-                        StreakGridCard(streak: streak)
-                            .frame(width: 470)
-                    }
-                    VStack(spacing: ZenSpace.s4) {
-                        ThisWeekCard(snapshot: model.snapshot ?? FakeSnapshot.value)
-                        ReviewCard()
-                    }
-                    .frame(maxWidth: .infinity)
+        let entries = model.streak.map(RecapBook.entries(from:)) ?? []
+        ZStack {
+            switch page {
+            case .week:
+                WeekPage(ask: ask, entries: entries) { entry in
+                    selectedRecap = entry?.id
+                    page = .recaps
                 }
+                .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
+            case .recaps:
+                RecapsPage(entries: entries, selected: $selectedRecap) { page = .week }
+                    .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
+            }
+        }
+        .animation(ZenMotion.container, value: page)
+        #if DEBUG
+        // Debug renders: ZEN_WEEK_PAGE=recaps opens the Recaps page; ZEN_WEEK_ASK=0…3 asks a question.
+        .onAppear {
+            let env = ProcessInfo.processInfo.environment
+            if env["ZEN_WEEK_PAGE"] == "recaps" { page = .recaps }
+            if let i = env["ZEN_WEEK_ASK"].flatMap(Int.init), WeekPrompt.all.indices.contains(i) {
+                ask.ask(WeekPrompt.all[i], recap: WeekDemo.recap, reduceMotion: true)
+            }
+        }
+        #endif
+    }
+}
+
+/// The Week page itself, top to bottom.
+private struct WeekPage: View {
+    @Environment(AppModel.self) private var model
+    let ask: WeekAskModel
+    let entries: [RecapEntry]
+    let openRecaps: (RecapEntry?) -> Void
+
+    var body: some View {
+        let snapshot = model.snapshot ?? FakeSnapshot.value
+        ScrollViewReader { proxy in
+        ScrollView {
+            VStack(alignment: .leading, spacing: ZenSpace.s8) {
+                VStack(alignment: .leading, spacing: ZenSpace.s3) {
+                    if let streak = model.streak {
+                        WeekHero(week: snapshot.week, streak: streak)
+                    }
+                    ScreensStrip(devices: snapshot.devices)
+                }
+                ExploreSection(ask: ask)
+                PastRecapsFooter(entries: entries, open: openRecaps)
+                    .id(Self.footerID)
             }
             .padding(ZenSpace.s6)
         }
         .scrollIndicators(.hidden)
-    }
-
-    private var header: some View {
-        let streak = model.streak
-        let good = streak?.thisWeek?.goodDays ?? 0
-        return HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: ZenSpace.s3) {
-                HStack(spacing: ZenSpace.s3) {
-                    CellRow((0..<4).map { $0 < good ? .on : .empty }, size: 8)
-                    Eyebrow(WeekCopy.eyebrow)
-                    // The weeks before this one come from day history, which isn't wired yet.
-                    DemoTag("Demo history")
-                }
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(WeekCopy.titleTop).foregroundStyle(Color.zen.textHeading)
-                    Text(WeekCopy.titleBottom)
-                        .foregroundStyle(LinearGradient(colors: [Color(hex: 0xD9A400), Color(hex: 0x7A5A00)], startPoint: .leading, endPoint: .trailing))
-                }
-                .zenType(.display)
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
-                Text(WeekCopy.lede).zenType(.body).foregroundStyle(Color.zen.textBody)
-            }
-            Spacer()
-            if let streak {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(streak.currentStreak)").font(ZenFont.number(64)).foregroundStyle(Color.zen.textHeading)
-                    Text("week streak").font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
-                    Text("Best \(streak.bestStreak) · this week can make it \(streak.streakBeforeThisWeek + 1)")
-                        .zenType(.caption).foregroundStyle(Color.zen.textCaption)
-                }
-                .accessibilityElement(children: .combine)
+        #if DEBUG
+        // Debug renders: ZEN_WEEK_SCROLL=recaps lands on the footer.
+        .onAppear {
+            if ProcessInfo.processInfo.environment["ZEN_WEEK_SCROLL"] == "recaps" {
+                Task { try? await Task.sleep(for: .milliseconds(400)); proxy.scrollTo(Self.footerID, anchor: .bottom) }
             }
         }
+        #endif
+        }
     }
+
+    private static let footerID = "past-recaps"
 }
 
-// MARK: - This week
-
-struct ThisWeekCard: View {
-    let snapshot: ScoreSnapshot
-    private let names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+/// Each screen's part this week, on one quiet line.
+private struct ScreensStrip: View {
+    let devices: [DeviceLine]
 
     var body: some View {
-        let week = snapshot.week
-        VStack(alignment: .leading, spacing: ZenSpace.s4) {
-            HStack {
-                Eyebrow("This week")
-                Spacer()
-                Text(week.statusLine).font(ZenFont.text(13, .semibold)).foregroundStyle(Color.zen.textHeading)
-            }
-            HStack(spacing: ZenSpace.s2) {
-                ForEach(0..<7, id: \.self) { i in
-                    DayTile(name: names[i], score: week.days[i], isToday: i == week.todayIndex,
-                            isWinning: week.winningDayIndex == i, isFuture: week.todayIndex.map { i > $0 } ?? false)
+        HStack(spacing: ZenSpace.s5) {
+            Eyebrow(WeekCopy.screens)
+            ForEach(devices) { d in
+                HStack(spacing: ZenSpace.s2) {
+                    Image(systemName: d.kind == .iPhone ? "iphone" : "laptopcomputer")
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.zen.textHeading)
+                    Text(d.name).font(ZenFont.text(13, .semibold)).foregroundStyle(Color.zen.textHeading)
+                    Text(d.detail).zenType(.caption).foregroundStyle(Color.zen.textCaption)
                 }
+                .accessibilityElement(children: .combine)
             }
-            Divider().overlay(Color.zen.borderHairline)
-            Eyebrow(WeekCopy.acrossDevices)
-            VStack(spacing: ZenSpace.s2) {
-                ForEach(snapshot.devices) { d in
-                    DeviceRow(symbol: d.kind == .iPhone ? "iphone" : "laptopcomputer", name: d.name, detail: d.detail)
-                }
-            }
+            Spacer(minLength: 0)
         }
-        .padding(ZenSpace.s5)
-        .glassCard(radius: ZenRadius.widget)
+        .padding(.horizontal, ZenSpace.s5)
+        .frame(height: 44)
+        .background(Capsule().fill(Color.zen.surfaceCard.opacity(0.55)))
+        .overlay(Capsule().strokeBorder(Color.zen.borderHairline, lineWidth: 1))
     }
 }
 
@@ -146,57 +197,6 @@ struct DayTile: View {
     }
 }
 
-// MARK: - Gemini's review
-
-struct ReviewCard: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: ZenSpace.s3) {
-            HStack(spacing: ZenSpace.s2) {
-                GeminiSpark()
-                Eyebrow(WeekCopy.reviewEyebrow)
-                Spacer()
-                DemoTag()
-            }
-            if let (review, source) = model.review, !model.reviewLoading {
-                Text(review.headline).zenType(.title).foregroundStyle(Color.zen.textHeading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(review.body).zenType(.body).foregroundStyle(Color.zen.textBody)
-                    .fixedSize(horizontal: false, vertical: true)
-                VStack(alignment: .leading, spacing: 4) {
-                    Eyebrow(WeekCopy.tryThis, color: Color.zen.textBrand)
-                    Text(review.experiment).font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(ZenSpace.s3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous).fill(Color.zen.surfaceTint.opacity(0.8)))
-                HStack {
-                    Text(source == .gemini ? WeekCopy.fromGemini : WeekCopy.fromHere).zenType(.caption).foregroundStyle(Color.zen.textCaption)
-                    Spacer()
-                    Button(WeekCopy.askAgain) { Task { await model.loadReview() } }.buttonStyle(ZenLinkButtonStyle())
-                }
-            } else {
-                HStack(spacing: ZenSpace.s3) {
-                    ZenoView(.curious).frame(width: 56)
-                    VStack(alignment: .leading, spacing: ZenSpace.s2) {
-                        Text(WeekCopy.reviewLoading).font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
-                        LoadingCells()
-                    }
-                }
-                .padding(.vertical, ZenSpace.s4)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(WeekCopy.reviewLoading)
-            }
-        }
-        .padding(ZenSpace.s5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(radius: ZenRadius.widget)
-        .animation(ZenMotion.container, value: model.reviewLoading)
-    }
-}
-
 /// A four-point spark for Gemini's lines: Zeno's own sparkle, in a cool gradient.
 struct GeminiSpark: View {
     var size: CGFloat = 14
@@ -220,7 +220,7 @@ struct LoadingCells: View {
     }
 }
 
-// MARK: - The dashboard toast
+// MARK: - The sidebar notice
 
 /// "Your week, reviewed": a notice at the foot of the sidebar when a new review lands, until it's
 /// read or closed. Amber, because a review is something earned, not something to fix.
@@ -233,7 +233,7 @@ struct WeeklyReviewToast: View {
             HStack(alignment: .top, spacing: ZenSpace.s3) {
                 GeminiSpark(size: 13).padding(.top, 2)
                 VStack(alignment: .leading, spacing: 3) {
-                    Eyebrow("Weekly review")
+                    Eyebrow(WeekCopy.reviewEyebrow)
                     Text(review.headline).font(ZenFont.text(13, .semibold)).foregroundStyle(Color.zen.textHeading)
                         .fixedSize(horizontal: false, vertical: true)
                     Button(WeekCopy.toastAction) {
