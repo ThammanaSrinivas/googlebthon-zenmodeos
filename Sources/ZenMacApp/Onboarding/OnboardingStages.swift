@@ -269,7 +269,7 @@ private struct GoldStage: View {
             .glassEffect(.regular, in: .rect(cornerRadius: ZenRadius.lg))
             .opacity(won ? 1 : 0.0)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Gemini: \(Copy.Story.geminiLine)")
+            .accessibilityLabel("Zeno: \(Copy.Story.geminiLine)")
         }
         .padding(ZenSpace.s8)
         .frame(width: 520)

@@ -257,7 +257,8 @@ final class AppModel {
                                    weeklyStreak: snap?.week.weeklyStreak ?? 0, hourOfDay: hour, trigger: trigger)
         let result = await services.nudges.nudge(for: context)
         lastNudge = result
-        notch.speak(result.0, kicker: result.1 == .gemini ? "Zeno · Gemini" : "Zeno")
+        // Nudges are written by rules on the server (founders, 20 Nov): never credited to Gemini.
+        notch.speak(result.0, kicker: "Zeno")
     }
 
     // MARK: Week and calendar

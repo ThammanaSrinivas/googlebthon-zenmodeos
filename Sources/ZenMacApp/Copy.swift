@@ -22,16 +22,16 @@ enum Copy {
             Card(eyebrow: "2 of 3 · One score",
                  title: "One score, every screen.",
                  body: "Your iPhone and this Mac count as one day. Only your Zen Score leaves the iPhone, never apps or minutes. Campuses and teams see a group score, and only for 5 or more."),
-            Card(eyebrow: "3 of 3 · Zen Gold, with Gemini",
+            Card(eyebrow: "3 of 3 · Zen Gold",
                  title: "Good weeks turn to gold.",
-                 body: "Four good days win the week, and Zen Gold opens. Zeno's words are written by Gemini, from your score alone."),
+                 body: "Four good days win the week, and Zen Gold opens. After a focus block, Gemini catches you up and drafts your replies; nothing sends until you say so."),
         ]
         static let start = "Get started"
         static let haveCode = "I have a join code"
         static let feelingsHint = "Tap a feeling to see Zeno in the notch."
         static let sameOnIsland = "The same Zeno, on your iPhone's Dynamic Island."
         static let geminiLine = "Four good days. That's the week. Gold's open."
-        static let geminiCaption = "Written by Gemini from your score alone"
+        static let geminiCaption = "Zeno, from your score alone"
         static let privacy = "Only the Zen Score leaves your iPhone."
     }
 
