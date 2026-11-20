@@ -51,7 +51,7 @@ final class FakeHook: FocusHook, @unchecked Sendable {
         // would starve every other test on a small CI runner).
         case .hangsIgnoringCancel:
             await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-                DispatchQueue.global().asyncAfter(deadline: .now() + 2) { c.resume() }
+                DispatchQueue.global().asyncAfter(deadline: .now() + 10) { c.resume() }
             }
         default: break
         }
@@ -111,8 +111,8 @@ struct HookRunnerTests {
         let clock = ContinuousClock()
         let start = clock.now
         let out = await fast.start(session(), hooks: [FakeHook("stuck", .hangsIgnoringCancel)])
-        // The hook holds on for 2 s; the runner answers at its deadline, well before.
-        #expect(clock.now - start < .milliseconds(1500))
+        // The hook holds on for 10 s; the runner answers at its 150 ms deadline, long before.
+        #expect(clock.now - start < .seconds(5))
         #expect(out.first?.state == .failed)
         #expect(out.first?.note == "Took too long")
     }

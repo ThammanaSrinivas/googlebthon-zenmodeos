@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 import ZenAPI
 
@@ -143,8 +144,11 @@ public func withDeadline<Value: Sendable>(_ limit: Duration, _ body: @escaping @
                 once.resume(continuation, with: .failed(error))
             }
         }
-        Task {
-            try? await Task.sleep(for: limit)
+        // The deadline runs on a dispatch timer, not the shared task pool, so a busy pool can't
+        // make it late.
+        let c = limit.components
+        let seconds = Double(c.seconds) + Double(c.attoseconds) / 1e18
+        DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
             if once.resume(continuation, with: .timedOut) { work.cancel() }
         }
     }
