@@ -374,6 +374,37 @@ final class AppModel {
         }
     }
 
+    // MARK: Zen Gold
+
+    let goldLedger = GoldLedger()
+    /// The live GOLDBEES quote, once one arrives. Never a placeholder.
+    private(set) var goldQuote: GoldQuote?
+    // TODO(buildathon): the live quote through the private package; until then Invest waits for it.
+    private let goldQuotes: any GoldQuoteService = NoQuotes()
+
+    /// Gold pay is open on a won week, and for the whole week after one.
+    var goldGate: GoldGate {
+        let week = (snapshot ?? FakeSnapshot.value).week
+        let finished = streak?.weeks.filter { !$0.isCurrent } ?? []
+        return GoldGate(thisWeek: week, lastWeekWon: finished.last?.isWon ?? false)
+    }
+
+    func refreshGoldQuote() async {
+        goldQuote = await goldQuotes.latest()
+    }
+
+    func recordGoldOrder(units: Int, quote: GoldQuote) {
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2
+        let monday = calendar.dateInterval(of: .weekOfYear, for: Date())!.start
+        goldLedger.record(units: units, pricePaise: quote.lastPaise, week: monday)
+    }
+
+    // MARK: Navigation
+
+    /// A card asking to open a section of the sidebar (Today's Gold and month cards use it).
+    var navigate: TodayView.Section?
+
     // MARK: Settings
 
     func setQuiet(_ quiet: QuietHours) {

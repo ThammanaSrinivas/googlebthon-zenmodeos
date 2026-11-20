@@ -45,6 +45,7 @@ public enum BackdropTone: String, CaseIterable, Sendable {
 /// it, and a faint 12 pt cell grid sits on the wall. Quiet in the top middle, where titles sit.
 public struct ZenBackdrop: View {
     var tone: BackdropTone
+    @Environment(\.colorScheme) private var scheme
     /// Where the hero's glow sits, in unit coordinates (nil for none).
     var glowAt: UnitPoint?
     var showsGrid: Bool
@@ -55,7 +56,11 @@ public struct ZenBackdrop: View {
         self.showsGrid = showsGrid
     }
 
+    /// Dark mode is the night tone, whatever the moment's light.
+    private var lit: BackdropTone { scheme == .dark ? .night : tone }
+
     public var body: some View {
+        let tone = lit
         ZStack {
             ForEach(BackdropTone.allCases, id: \.self) { t in
                 StudioRoom(tone: t, showsGrid: showsGrid)

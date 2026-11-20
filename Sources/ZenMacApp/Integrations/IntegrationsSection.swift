@@ -47,6 +47,12 @@ struct IntegrationsSection: View {
                 } else {
                     SoloCard()
                 }
+                if let workspace, !workspace.isCampus {
+                    HStack(alignment: .top, spacing: ZenSpace.s4) {
+                        WorkReportCard()
+                        TeamInsightsCard().frame(width: 340)
+                    }
+                }
                 toolGrid
                 adminNote
             }

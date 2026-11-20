@@ -3,13 +3,14 @@ import Albeit
 import ZenAPI
 
 /// Today, as the founder's sketch lays it out: search and one primary action on top, the usual stats,
-/// then the day as a clock beside where the minutes went, then the pattern cards beside the nudges.
+/// then the day as a clock beside where the minutes went, then the pattern cards beside the nudges,
+/// then your month (in the pattern chosen in Zen Circle) beside Zen Gold.
 /// Built for skimming: one number per tile, one idea per card, details on hover or tap.
 struct DashboardView: View {
     @Environment(AppModel.self) private var model
     @FocusState private var searchFocused: Bool
 
-    enum Anchor: Hashable { case stats, clock, flow, deck, nudges }
+    enum Anchor: Hashable { case stats, clock, flow, deck, nudges, month, gold }
 
     var body: some View {
         @Bindable var dash = model.dashboard
@@ -30,6 +31,10 @@ struct DashboardView: View {
                             row(wide: wide, width: inner, split: 0.58, height: 404,
                                 PatternDeckCard().id(Anchor.deck),
                                 NudgesCard(day: dash.day).id(Anchor.nudges))
+                            // Your month in the pattern you chose in Zen Circle, beside Zen Gold.
+                            row(wide: wide, width: inner, split: 0.5, height: 360,
+                                YourMonthCard { model.navigate = .cohort }.id(Anchor.month),
+                                GoldGlanceCard { model.navigate = .gold }.id(Anchor.gold))
                         }
                         .padding(.horizontal, ZenSpace.s2)
                         .padding(.top, ZenSpace.s1)
@@ -38,6 +43,16 @@ struct DashboardView: View {
                     }
                     .scrollIndicators(.hidden)
                     .scrollClipDisabled()
+                    #if DEBUG
+                    // Debug renders: ZEN_DASH_ANCHOR=month scrolls to that card.
+                    .task {
+                        let anchors: [String: Anchor] = ["stats": .stats, "clock": .clock, "deck": .deck, "month": .month, "gold": .gold]
+                        if let raw = ProcessInfo.processInfo.environment["ZEN_DASH_ANCHOR"], let a = anchors[raw] {
+                            try? await Task.sleep(for: .milliseconds(400))
+                            proxy.scrollTo(a, anchor: .center)
+                        }
+                    }
+                    #endif
                 }
             }
         }

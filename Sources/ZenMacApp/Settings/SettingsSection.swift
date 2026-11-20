@@ -5,6 +5,8 @@ import MacUsage
 
 enum SettingsCopy {
     static let title = "Settings"
+    static let appearanceTitle = "Appearance"
+    static let appearanceCaption = "Paper by day, ink by night, or follow the Mac."
     static let notchTitle = "Zeno in the notch"
     static let notchToggle = "Zeno speaks in the notch"
     static let notchCaption = "One calm line when it matters. Never a countdown, never a nag."
@@ -42,6 +44,7 @@ struct SettingsSection: View {
                     .accessibilityAddTraits(.isHeader)
                 HStack(alignment: .top, spacing: ZenSpace.s4) {
                     VStack(spacing: ZenSpace.s4) {
+                        AppearanceSettings()
                         NotchSettings()
                         QuietSettings()
                         IslandSettings()
@@ -97,6 +100,61 @@ private struct SwitchRow: View {
                 .tint(Color.zen.brandFill)
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Paper, ink, or whatever the Mac is set to: three swatches, the chosen one ringed.
+private struct AppearanceSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var prefs = model.preferences
+        SettingsGroup(title: SettingsCopy.appearanceTitle, caption: SettingsCopy.appearanceCaption) {
+            HStack(spacing: ZenSpace.s3) {
+                ForEach(PreferenceValues.Appearance.allCases, id: \.self) { a in
+                    let on = prefs.values.appearance == a
+                    Button { withAnimation(ZenMotion.calm(ZenMotion.t3)) { prefs.values.appearance = a } } label: {
+                        VStack(spacing: ZenSpace.s2) {
+                            swatch(a)
+                                .frame(width: 112, height: 70)
+                                .clipShape(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: ZenRadius.md, style: .continuous)
+                                    .strokeBorder(on ? Color.zen.textBrand : Color.zen.borderHairline, lineWidth: on ? 2 : 1))
+                            Text(a.label).font(ZenFont.text(12.5, on ? .semibold : .regular)).foregroundStyle(Color.zen.textHeading)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(a.label)
+                    .accessibilityAddTraits(on ? [.isSelected, .isButton] : .isButton)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func swatch(_ a: PreferenceValues.Appearance) -> some View {
+        switch a {
+        case .light: mini(ground: Color(hex: 0xF2F1EC), card: Color(hex: 0xFAF9F5), ink: Color(hex: 0x12160F))
+        case .dark: mini(ground: Color(hex: 0x0E110E), card: Color(hex: 0x161A16), ink: Color(hex: 0xF2F3EE))
+        case .system:
+            HStack(spacing: 0) {
+                mini(ground: Color(hex: 0xF2F1EC), card: Color(hex: 0xFAF9F5), ink: Color(hex: 0x12160F))
+                mini(ground: Color(hex: 0x0E110E), card: Color(hex: 0x161A16), ink: Color(hex: 0xF2F3EE))
+            }
+        }
+    }
+
+    private func mini(ground: Color, card: Color, ink: Color) -> some View {
+        ZStack(alignment: .topLeading) {
+            ground
+            VStack(alignment: .leading, spacing: 4) {
+                RoundedRectangle(cornerRadius: 2).fill(ink.opacity(0.85)).frame(width: 26, height: 5)
+                RoundedRectangle(cornerRadius: 5).fill(card).frame(height: 26)
+                    .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 2).fill(Color(hex: 0x2AA136)).frame(width: 18, height: 6).padding(.leading, 6) }
+            }
+            .padding(8)
+        }
     }
 }
 

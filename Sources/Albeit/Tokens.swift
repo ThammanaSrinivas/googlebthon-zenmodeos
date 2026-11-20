@@ -10,7 +10,7 @@ import UIKit
 
 extension Color {
     /// A colour that follows the system appearance.
-    init(light: UInt32, dark: UInt32, alpha: Double = 1) {
+    public init(light: UInt32, dark: UInt32, alpha: Double = 1) {
         #if canImport(AppKit)
         self.init(nsColor: NSColor(name: nil) { appearance in
             let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua

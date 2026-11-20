@@ -51,6 +51,21 @@ struct PreferenceValues: Codable, Equatable, Sendable {
         }
     }
 
+    enum Appearance: String, Codable, CaseIterable, Sendable {
+        case system, light, dark
+
+        var label: String {
+            switch self {
+            case .system: "Match the Mac"
+            case .light: "Paper"
+            case .dark: "Ink"
+            }
+        }
+    }
+
+    var appearance: Appearance = .system
+    /// How the person likes their month drawn; Zen Circle sets it, Today shows it.
+    var pattern: PatternKind = .bloom
     var zenoInNotch = true
     var frequency: Frequency = .gentle
     var moments: Set<Moment> = Set(Moment.allCases)
@@ -61,6 +76,24 @@ struct PreferenceValues: Codable, Equatable, Sendable {
     var islandGoodDay = true
     var islandFocus = true
     var islandReactions = true
+
+    init() {}
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PreferenceValues()
+        appearance = (try? c.decode(Appearance.self, forKey: .appearance)) ?? d.appearance
+        pattern = (try? c.decode(PatternKind.self, forKey: .pattern)) ?? d.pattern
+        zenoInNotch = (try? c.decode(Bool.self, forKey: .zenoInNotch)) ?? d.zenoInNotch
+        frequency = (try? c.decode(Frequency.self, forKey: .frequency)) ?? d.frequency
+        moments = (try? c.decode(Set<Moment>.self, forKey: .moments)) ?? d.moments
+        quietInCalendarEvents = (try? c.decode(Bool.self, forKey: .quietInCalendarEvents)) ?? d.quietInCalendarEvents
+        quiet = (try? c.decode(QuietHours.self, forKey: .quiet)) ?? d.quiet
+        islandScore = (try? c.decode(Bool.self, forKey: .islandScore)) ?? d.islandScore
+        islandGoodDay = (try? c.decode(Bool.self, forKey: .islandGoodDay)) ?? d.islandGoodDay
+        islandFocus = (try? c.decode(Bool.self, forKey: .islandFocus)) ?? d.islandFocus
+        islandReactions = (try? c.decode(Bool.self, forKey: .islandReactions)) ?? d.islandReactions
+    }
 }
 
 @MainActor
