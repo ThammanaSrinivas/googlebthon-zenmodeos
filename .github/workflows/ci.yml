@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,6 +24,26 @@ jobs:
       # Packages/ZenShared only: the root package is the SwiftUI Mac app (macOS builds it).
       - name: Build and test Packages/ZenShared
         run: scripts/test-linux.sh
+
+  macos:
+    name: Mac app + shared tests (macOS)
+    # The SwiftUI app (Albeit, ZenMacApp, ZenPhoneApp) builds only on macOS. Its tests run here
+    # with the fakes (the private repo isn't checked out, so ZenMock is linked). macOS minutes
+    # cost 10x on a private repo: only code changes run it, and a newer push cancels the older.
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip mac]')
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version && xcodebuild -version
+      - name: Build and test the app package
+        env:
+          ZEN_USE_MOCK: "1"
+        run: swift build --build-tests && swift test --skip-build
+      - name: Build and test Packages/ZenShared (the Apple-only pieces too)
+        working-directory: Packages/ZenShared
+        run: swift build --build-tests && swift test --skip-build
 
   guardrails:
     name: Guardrails
