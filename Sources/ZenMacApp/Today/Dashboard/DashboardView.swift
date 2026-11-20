@@ -22,6 +22,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: ZenSpace.s8) {
                         topBar
                         FocusCard()
+                        CatchUpCardView()
                         HeroCard(day: dash.day).id(Anchor.hero)
                         ScreensSection().id(Anchor.screens)
                         Group {

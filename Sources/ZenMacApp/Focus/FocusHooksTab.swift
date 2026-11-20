@@ -20,6 +20,7 @@ struct FocusHooksTab: View {
                 SlackSetup()
                 CalendarSetup()
                 WebhookSetup()
+                WorkHoursCard()
             }
         }
     }

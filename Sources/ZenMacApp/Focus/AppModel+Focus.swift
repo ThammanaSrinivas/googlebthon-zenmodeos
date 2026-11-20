@@ -22,6 +22,8 @@ extension AppModel {
             self?.focusEnded(ended)
         }
         focus.configure(sync: { svc.focus })
+        afterHours.onWorkEnded = { [weak self] in self?.workDayEnded() }
+        afterHours.start(focus: focus, sync: { svc.focus })
         #if DEBUG
         // Functional tests: ZEN_FOCUS_MINUTES=1 starts a block at launch; ZEN_FOCUS_END_AFTER=20 ends
         // it early after that many seconds.
@@ -53,11 +55,24 @@ extension AppModel {
         focus.start(until: until, source: source)
     }
 
-    /// A block ended: Zeno says so, then the catch-up runs.
+    /// A block ended: Zeno says so, then the catch-up reads what came in (on this Mac).
     func focusEnded(_ ended: FocusEnded) {
         let line = ended.record.kept ? "Block kept. Let's see what came in." : "Focus ended. Everything's back on."
         notch.speak(.init(feeling: ended.record.kept ? .happy : .pleasant, kicker: "Focus Mode", line: line),
                     hold: .seconds(3), respectQuiet: false)
+        Task {
+            await catchUp.focusEnded(since: ended.record.session.startAt)
+            if case .waiting(let n) = catchUp.state {
+                notch.speak(.init(feeling: .curious, kicker: "What did I miss?", line: n == 1 ? "1 message came in." : "\(n) messages came in."),
+                            hold: .seconds(3), respectQuiet: false)
+            }
+        }
+    }
+
+    /// The end of work hours: Zeno nudges a wrap-up.
+    func workDayEnded() {
+        notch.speak(.init(feeling: .sleepy, kicker: "Work's done", line: "Wrap up, then log off."), hold: .seconds(3.4), respectQuiet: false)
+        wrapUpOffered = true
     }
 }
 

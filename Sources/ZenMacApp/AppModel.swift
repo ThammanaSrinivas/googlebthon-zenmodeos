@@ -282,6 +282,12 @@ final class AppModel {
     let integrations: IntegrationsModel
     /// Focus Mode: the switch, the hooks, and what each did.
     let focus: FocusModel
+    /// "What did I miss?" after a block.
+    let catchUp = CatchUpModel()
+    /// Work hours and the after-hours guard.
+    let afterHours: AfterHoursGuard
+    /// The end of work hours offered a wrap-up (Today shows the Wrap up card).
+    var wrapUpOffered = false
     /// Opens Integrations on this tab (a card's "Set up hooks").
     var integrationsTab: IntegrationsSection.Tab?
 
@@ -290,6 +296,7 @@ final class AppModel {
         preferences = ZenPreferences(defaults: defaults)
         integrations = IntegrationsModel(defaults: defaults)
         focus = FocusModel(defaults: defaults)
+        afterHours = AfterHoursGuard(defaults: defaults)
         goldLedger = GoldLedger(defaults: defaults)
         voiceLedger = OnDeviceLedger(store: ZenVoice.UserDefaultsKeyValueStore(defaults))
     }
