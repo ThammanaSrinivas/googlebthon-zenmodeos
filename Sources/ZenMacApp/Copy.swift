@@ -46,6 +46,7 @@ enum Copy {
 
     enum Seat {
         static let eyebrow = "Make it yours · 1 of 3"
+        static let step = "Your seat"
         static let title = "Who's this Mac with?"
         static func option(_ s: Profile.Seat) -> (title: String, caption: String) {
             switch s {
@@ -68,6 +69,7 @@ enum Copy {
 
     enum Uses {
         static let eyebrow = "Make it yours · 2 of 3"
+        static let step = "Your Mac"
         static let title = "What's this Mac for?"
         static let body = "Time on these never counts against you. On a computer, only distracting minutes do."
         static func label(_ u: Profile.Use) -> String {
@@ -83,6 +85,7 @@ enum Copy {
 
     enum Quiet {
         static let eyebrow = "Make it yours · 3 of 3"
+        static let step = "Quiet hours"
         static let title = "When should Zeno stay quiet?"
         static let body = "Zeno never speaks between 10:30 pm and 7 am. Pick the hours you'd like on top."
         static let presets: [(QuietHours, String, String)] = [
@@ -95,6 +98,7 @@ enum Copy {
 
     enum Count {
         static let eyebrow = "Let it count"
+        static let step = "Let it count"
         static let title = "Your day counts itself."
         static let body = "ZenMode OS notices which app is in front, so YouTube and Docs count differently. Window titles are read, never stored. Nothing to log, ever."
         static let allow = "Allow in System Settings"
@@ -106,6 +110,7 @@ enum Copy {
 
     enum Bring {
         static let eyebrow = "Bring your day"
+        static let step = "Sign in"
         static let title = "Bring your day here."
         static let body = "Scan this with your iPhone to bring your day along. Your Zen Score shows the same on both."
         static let google = "Continue with Google"
@@ -119,13 +124,37 @@ enum Copy {
         static let signInTitle = "Sign in."
         static let signInBody = "One account on every screen. Your Zen Score shows the same on your iPhone and this Mac."
         static let signInCard = "Only your Zen Score ever leaves your iPhone."
+        // Two ways in: the employee and the employer.
+        static let roleKicker = "Signing in"
+        static let roleQuestion = "Who's signing in?"
+        static func role(_ r: AppModel.SignInRole) -> (title: String, caption: String, symbol: String) {
+            switch r {
+            case .member: ("I'm joining my team", "Team member. Your day stays yours; the team sees one group score.", "person.fill")
+            case .admin: ("I run a team", "Team admin. Your team's focus, for 5 or more people, never a name.", "person.3.fill")
+            }
+        }
+        static let waiting = "Sign in to bring your day here"
     }
 
     enum Handoff {
         static let kicker = "Paired · iPhone + Mac"
+        static let step = "Hand-off"
         static func line(_ name: String) -> String { "Hi, \(name). Your day is here." }
         static let title = "Same score. Two screens."
         static let open = "Open Today"
+        static let openAdmin = "Open Team admin"
+        static func adminReady(_ team: String) -> String { "You run \(team). Its focus is on Team admin, for 5 or more people, never a name." }
+        static let createTitle = "Create your team on the web"
+        static let createBody = "Name the team and invite people with one link. This Mac opens on Team admin once it's made."
+        static let createLater = "Your admin page is on the web. Till then, Today is yours."
+        static let joinTitle = "Got a join code from your team?"
+        static let joinBody = "Add it now, or any time from Today."
+        static let join = "Join"
+        static let iPhone = "Your iPhone"
+        static let mac = "This Mac"
+        static let arriving = "Bringing your day…"
+        static let arrived = "Same as your iPhone"
+        static let arrivedLine = "Your day is here."
     }
 
     enum Today {

@@ -226,3 +226,74 @@ struct TodayFlowTests {
         #expect(m.stage == .onboarding(.story))
     }
 }
+
+@Suite("App: two ways in, the employee and the employer")
+@MainActor
+struct SignInRoleTests {
+    private func model(admin: any AdminService) -> AppModel {
+        let m = AppModel(defaults: scratchDefaults())
+        m.notch.reduceMotion = true
+        let f = Services.fakes()
+        m.use(Services(auth: f.auth, nudges: FakeNudges(), cohorts: f.cohorts, scores: f.scores, days: f.days,
+                       voiceTokens: f.voiceTokens, cards: f.cards, admin: admin, isDemo: true))
+        m.profile.quiet = m.preferences.values.quiet
+        return m
+    }
+
+    @Test("Most people are members; the choice is kept and Zeno answers it")
+    func choice() async {
+        let m = model(admin: FakeAdmin())
+        #expect(m.signInRole == .member)
+        m.choose(role: .admin)
+        #expect(m.signInRole == .admin)
+        #expect(await eventually { m.notch.moment.kicker == Copy.Bring.roleKicker })
+        m.choose(role: .member)
+        #expect(m.signInRole == .member)
+        #expect(AppModel.SignInRole.allCases == [.member, .admin])
+    }
+
+    @Test("An employer who administers a team lands on Team admin")
+    func adminWithTeam() async {
+        let m = model(admin: StubAdmin(.admin))
+        m.choose(role: .admin)
+        await m.admin.refreshTeam(m.services.admin)
+        #expect(m.handoffPath == .adminTeam("Payments"))
+        m.go(.handoff)
+        m.finishOnboarding()
+        #expect(m.stage == .today)
+        #expect(await eventually { m.navigate == .admin })
+    }
+
+    @Test("An employer without a team is shown the web path, and stays on Today")
+    func adminWithoutTeam() async {
+        let m = model(admin: StubAdmin(.member))
+        m.choose(role: .admin)
+        await m.admin.refreshTeam(m.services.admin)
+        #expect(m.handoffPath == .adminCreate)
+        m.finishOnboarding()
+        try? await Task.sleep(for: .milliseconds(700))
+        #expect(m.stage == .today && m.navigate == nil)
+    }
+
+    @Test("A member goes to Today; the join code is offered until they've joined a group")
+    func member() async {
+        let m = model(admin: StubAdmin(.admin))
+        #expect(m.handoffPath == .member(joined: false))
+        m.codeText = "ZEN4HS"
+        m.joinCohort()
+        #expect(await eventually { m.cohort != nil })
+        #expect(m.handoffPath == .member(joined: true))
+        m.finishOnboarding()
+        try? await Task.sleep(for: .milliseconds(700))
+        #expect(m.stage == .today && m.navigate == nil)
+    }
+
+    @Test("Joining with a code on the hand-off finishes onboarding")
+    func joinFromHandoff() async {
+        let m = model(admin: StubAdmin(.member))
+        m.go(.handoff)
+        m.codeText = "ZEN4HS"
+        m.joinCohort()
+        #expect(await eventually { m.stage == .today })
+    }
+}

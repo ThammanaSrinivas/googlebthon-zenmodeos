@@ -17,10 +17,25 @@ final class AppModel {
 
     enum PairState: Equatable { case waiting, approving, paired, failed(String) }
 
+    /// Who is signing in: a team member (the employee) or the person who runs the team (the employer).
+    enum SignInRole: String, CaseIterable, Sendable { case member, admin }
+
+    /// Where the hand-off leads, from the role picked and what the backend says after sign-in.
+    enum HandoffPath: Equatable {
+        /// A member: Today, with the join code ready when they haven't joined a group yet.
+        case member(joined: Bool)
+        /// An admin of this team: Today opens on Team admin.
+        case adminTeam(String)
+        /// Picked "I run a team" but administers none yet: the team is made on the web.
+        case adminCreate
+    }
+
     var stage: Stage = .onboarding(.story)
     /// Which story card opens first (debug tours start mid-story).
     var initialStoryIndex = 0
     var profile = Profile()
+    /// Picked on the sign-in step, before Apple or Google. Most people are members.
+    private(set) var signInRole: SignInRole = .member
     var codeText = "" { didSet { let clean = JoinCode.sanitize(codeText); if clean != codeText { codeText = clean } } }
     private(set) var codeState: CodeState = .idle
     private(set) var cohort: CohortSummary?
@@ -111,6 +126,31 @@ final class AppModel {
         preferences.values.quiet = profile.quiet
         withAnimation(ZenMotion.container) { stage = .today }
         Task { await refreshNudge(trigger: .hello) }
+        if signInRole == .admin { Task { await openTeamAdminIfAdministering() } }
+    }
+
+    func choose(role: SignInRole) {
+        guard role != signInRole else { return }
+        withAnimation(ZenMotion.container) { signInRole = role }
+        let line = role == .admin ? "Running a team? I'll show you its focus." : "Joining your team. Nice."
+        notch.speak(.init(feeling: role == .admin ? .proud : .happy, kicker: Copy.Bring.roleKicker, line: line),
+                    hold: .seconds(2.6), respectQuiet: false)
+    }
+
+    var handoffPath: HandoffPath {
+        switch signInRole {
+        case .member: .member(joined: cohort != nil)
+        case .admin: admin.team.map { .adminTeam($0.name) } ?? .adminCreate
+        }
+    }
+
+    /// An employer who administers a team lands on Team admin once Today shows; anyone else stays on Today.
+    private func openTeamAdminIfAdministering() async {
+        if admin.team == nil { await admin.refreshTeam(services.admin) }
+        guard admin.team != nil, stage == .today else { return }
+        // Today's sidebar listens for `navigate` once it's on screen.
+        try? await Task.sleep(for: .milliseconds(450))
+        navigate = .admin
     }
 
     /// Zeno shows a feeling in the notch (the story's feelings row). Onboarding ignores quiet hours.

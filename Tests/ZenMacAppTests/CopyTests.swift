@@ -91,3 +91,22 @@ struct CopyTests {
         #expect(Copy.Handoff.line("Kamal") == "Hi, Kamal. Your day is here.")
     }
 }
+
+@Suite("Copy: the two sign-in roles")
+struct SignInRoleCopyTests {
+    @Test("Employee and employer each have their own title, caption and symbol")
+    func roles() {
+        let member = Copy.Bring.role(.member), admin = Copy.Bring.role(.admin)
+        #expect(member.title == "I'm joining my team")
+        #expect(admin.title == "I run a team")
+        #expect(member.title != admin.title && member.symbol != admin.symbol)
+        #expect(admin.caption.contains("5 or more") && admin.caption.contains("never a name"))
+    }
+
+    @Test("The hand-off's admin lines name the team and keep the group promise")
+    func handoffAdmin() {
+        #expect(Copy.Handoff.adminReady("Payments").hasPrefix("You run Payments."))
+        #expect(Copy.Handoff.adminReady("Payments").contains("5 or more"))
+        #expect(Copy.Handoff.createTitle == "Create your team on the web")
+    }
+}
