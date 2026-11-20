@@ -218,13 +218,14 @@ struct ZenoHearing: ViewModifier {
 
     func body(content: Content) -> some View {
         let on = level != nil
-        let l = reduceMotion ? 0.3 : min(max(level ?? 0, 0), 1)
+        // Stepped in tenths, so it breathes with your voice instead of flickering on every syllable.
+        let l = reduceMotion ? 0.3 : (min(max(level ?? 0, 0), 1) * 10).rounded() / 10
         return content
-            // Two layers: a close drop shadow that grounds the card, and a wider one that blooms as you talk.
-            .shadow(color: glow.opacity(on ? 0.55 : 0), radius: on ? 6 + 6 * l : 0, x: 0, y: on ? 8 : 0)
-            .shadow(color: glow.opacity(on ? 0.35 + 0.5 * l : 0), radius: on ? 18 + 26 * l : 0, x: 0, y: on ? 14 + 12 * l : 0)
-            .animation(.easeOut(duration: 0.14), value: l)
-            .animation(ZenMotion.calm(ZenMotion.t2), value: on)
+            // One soft shadow in Zeno's colour, just under the card: a hint at silence, a little
+            // warmer and wider as you talk. Quiet enough to sit beside the card's own black shadow.
+            .shadow(color: glow.opacity(on ? 0.14 + 0.22 * l : 0), radius: on ? 14 + 8 * l : 0, x: 0, y: on ? 9 + 3 * l : 0)
+            .animation(.easeInOut(duration: 0.35), value: l)
+            .animation(ZenMotion.calm(ZenMotion.t3), value: on)
     }
 }
 

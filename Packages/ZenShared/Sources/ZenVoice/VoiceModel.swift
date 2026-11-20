@@ -328,8 +328,8 @@ public final class VoiceModel {
             levelLog = []
         }
         #endif
-        let target = zenoAudible ? 0 : min(1, Double(rms) * 9)
-        micLevel = target > micLevel ? target : micLevel * 0.8 + target * 0.2
+        let target = zenoAudible ? 0 : min(1, Double(rms) * 6)
+        micLevel += (target - micLevel) * (target > micLevel ? 0.45 : 0.12)
     }
 
     private func resetHearing() {
