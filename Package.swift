@@ -4,19 +4,19 @@
 // The shared, UI-free code (the ZenAPI contract, ZenLogic, the ZenMock fakes, MacUsage) is its own
 // package in Packages/ZenShared, so the private backend package can depend on it too without a cycle:
 //
-//     ZenModeMac ──▶ ZenShared ◀── ZenPrivate (private repo, optional)
-//          └──────────────────────────▲
+//     ZenMacApp ──▶ ZenShared ◀── ZenCorePrivate (private repo, optional)
+//          └───────────────────────────▲
 //
 // Open core: this repo builds on its own with the fakes in `ZenMock`. When the private repo
-// (`googlebthon-zenmodeos-private`) is cloned beside this one, the app links its `ZenPrivate`
-// package instead (the live backend, the Gemini callables). Set ZEN_USE_MOCK=1 to force the fakes.
+// (`googlebthon-zenmodeos-private`) is cloned beside this one, the app links its `ZenCorePrivate`
+// package instead (Firebase, the Gemini callables). Set ZEN_USE_MOCK=1 to force the fakes.
 import Foundation
 import PackageDescription
 
-let privateDir = Context.packageDirectory + "/../googlebthon-zenmodeos-private/ZenPrivate"
+let privateDir = Context.packageDirectory + "/../googlebthon-zenmodeos-private"
 #if os(Linux)
-// The app is SwiftUI (macOS only), and ZenPrivate offers only its logic product on Linux: resolve
-// on the fakes there, so the manifest still loads.
+// The app is SwiftUI (macOS only), and the private package offers only its logic on Linux: resolve
+// on the fakes there, so the manifest still loads (CI tests Packages/ZenShared).
 let usePrivate = false
 #else
 let usePrivate = FileManager.default.fileExists(atPath: privateDir + "/Package.swift")
@@ -30,7 +30,7 @@ func shared(_ product: String) -> Target.Dependency { .product(name: product, pa
 var appDependencies: [Target.Dependency] = ["Albeit", shared("ZenAPI"), shared("ZenLogic"), shared("ZenMock"), shared("MacUsage")]
 var packageDependencies: [Package.Dependency] = [.package(path: "Packages/ZenShared")]
 if usePrivate {
-    appDependencies.append(.product(name: "ZenPrivate", package: "ZenPrivate"))
+    appDependencies.append(.product(name: "ZenCorePrivate", package: "googlebthon-zenmodeos-private"))
     packageDependencies.append(.package(path: privateDir))
 }
 
@@ -39,6 +39,9 @@ let package = Package(
     platforms: [.macOS(.v26), .iOS(.v26)],
     products: [
         .library(name: "Albeit", targets: ["Albeit"]),
+        // The Mac app as a library, hosted by the Xcode app target (signed) and by `swift run`.
+        // ZenAPI and ZenMock come from Packages/ZenShared (the Xcode project references it too).
+        .library(name: "ZenMacApp", targets: ["ZenMacApp"]),
         .executable(name: "ZenModeMac", targets: ["ZenModeMac"]),
     ],
     dependencies: packageDependencies,
@@ -46,7 +49,9 @@ let package = Package(
         // Albeit, the design system: tokens, type, Zeno, the lit backdrop, glass components.
         .target(name: "Albeit", swiftSettings: swift6),
         // The Mac app: the notch, onboarding, Today.
-        .executableTarget(name: "ZenModeMac", dependencies: appDependencies, swiftSettings: swift6),
+        .target(name: "ZenMacApp", dependencies: appDependencies, swiftSettings: swift6),
+        // `swift run ZenModeMac`: unsigned, for fast local runs and the snapshot tour.
+        .executableTarget(name: "ZenModeMac", dependencies: ["ZenMacApp"], swiftSettings: swift6),
         .testTarget(name: "AlbeitTests", dependencies: ["Albeit"], swiftSettings: swift6),
     ]
 )

@@ -1,6 +1,15 @@
-// SHA-256 (FIPS 180-4), for the grid digests in zen_score_v1.json: CryptoKit isn't on Linux, and the
-// package takes no dependencies.
-struct SHA256 {
+// SHA-256 (FIPS 180-4) in pure Swift: one copy for every platform that has no CryptoKit (Linux CI),
+// used by SignInNonce there and by the Zen Score grid digests in the tests.
+public struct PortableSHA256: Sendable {
+    public init() {}
+
+    /// Lower-case hex SHA-256 of `bytes`.
+    public static func hex(_ bytes: [UInt8]) -> String {
+        var hash = PortableSHA256()
+        hash.update(bytes)
+        return hash.hexDigest()
+    }
+
     private static let k: [UInt32] = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
         0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -18,7 +27,7 @@ struct SHA256 {
     private var length: UInt64 = 0
     private var schedule = [UInt32](repeating: 0, count: 64)
 
-    mutating func update(_ bytes: [UInt8]) {
+    public mutating func update(_ bytes: [UInt8]) {
         length += UInt64(bytes.count)
         for byte in bytes {
             block[filled] = byte
@@ -28,7 +37,7 @@ struct SHA256 {
     }
 
     /// The digest in lowercase hex. The hash is spent afterwards.
-    mutating func hexDigest() -> String {
+    public mutating func hexDigest() -> String {
         let bits = length &* 8
         update([0x80])
         while filled != 56 { update([0]) }

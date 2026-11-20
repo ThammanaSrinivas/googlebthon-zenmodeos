@@ -1,0 +1,6 @@
+// Mac app settings. Values that must stay out of this public repo come from
+// Mac.local.xcconfig (gitignored). Create it with one line:
+//   GOOGLE_REVERSED_CLIENT_ID = <REVERSED_CLIENT_ID from this app's GoogleService-Info.plist>
+// and put that plist in Apps/Mac/Sources/ (also gitignored).
+GOOGLE_REVERSED_CLIENT_ID =
+#include? "Mac.local.xcconfig"

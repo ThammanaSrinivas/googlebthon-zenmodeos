@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 import Albeit
 import ZenAPI
 
@@ -392,6 +393,17 @@ private struct BringColumn: View {
         VStack(alignment: .leading, spacing: ZenSpace.s5) {
             QuestionHeader(eyebrow: Copy.Bring.eyebrow, title: Copy.Bring.title, body_: Copy.Bring.body)
             VStack(alignment: .leading, spacing: ZenSpace.s3) {
+                SignInWithAppleButton(.signIn) { request in
+                    request.requestedScopes = [.fullName]
+                    request.nonce = model.prepareAppleRequest()
+                } onCompletion: { result in
+                    if case .success(let auth) = result, let credential = auth.credential as? ASAuthorizationAppleIDCredential {
+                        model.signInWithApple(identityToken: credential.identityToken, fullName: credential.fullName)
+                    }
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(width: 240, height: 40)
+                .clipShape(Capsule())
                 Button(Copy.Bring.google) { model.signInWithGoogle() }
                     .buttonStyle(ZenSecondaryButtonStyle())
                 Button(Copy.Bring.explore) { model.finishOnboarding() }

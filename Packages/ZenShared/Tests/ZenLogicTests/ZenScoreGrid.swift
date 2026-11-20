@@ -2,6 +2,7 @@
 // scored once by ZenScore.compute for the tests that check it: the digests the Kotlin wrote
 // (ContractVectorsTests) and the promises the formula makes (ZenScoreTests).
 @testable import ZenLogic
+import ZenAPI
 
 struct ZenScoreGrid: Sendable {
     static let shared = Result { try ZenScoreGrid() }
@@ -38,9 +39,9 @@ struct ZenScoreGrid: Sendable {
     /// SHA-256 of each promise's lines and of all of them, as the Kotlin hashes them: one ASCII line
     /// `minutes,distractedSessions,promiseHours,tenths\n` per point, in the grid's order.
     func digests() -> (byPromiseHours: [String], all: String) {
-        var all = SHA256()
+        var all = PortableSHA256()
         let byPromiseHours = promiseHours.indices.map { h in
-            var one = SHA256()
+            var one = PortableSHA256()
             for (d, distracted) in distractedSessions.enumerated() {
                 for (m, minute) in minutes.enumerated() {
                     let line = Array("\(minute),\(distracted),\(promiseHours[h]),\(tenths[h][d][m])\n".utf8)

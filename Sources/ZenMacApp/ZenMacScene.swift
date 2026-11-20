@@ -1,15 +1,24 @@
 import SwiftUI
 import Albeit
 
-@main
-struct ZenModeApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+/// The Mac app's one window. The app target (Xcode) and the `swift run` executable both host it:
+///
+///     @main struct ZenModeOSMacApp: App {
+///         @NSApplicationDelegateAdaptor(ZenMacAppDelegate.self) private var delegate
+///         var body: some Scene { ZenMacScene(delegate: delegate) }
+///     }
+public struct ZenMacScene: Scene {
+    let delegate: ZenMacAppDelegate
 
-    var body: some Scene {
+    public init(delegate: ZenMacAppDelegate) { self.delegate = delegate }
+
+    public var body: some Scene {
         Window(Copy.product, id: "main") {
             RootView()
                 .environment(delegate.model)
                 .frame(minWidth: 1040, minHeight: 680)
+                // Google sign-in returns through the REVERSED_CLIENT_ID URL scheme.
+                .onOpenURL { url in delegate.model.handle(url: url) }
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
@@ -18,11 +27,13 @@ struct ZenModeApp: App {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+public final class ZenMacAppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     private var notch: NotchPanelController?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    override public init() { super.init() }
+
+    public func applicationDidFinishLaunching(_ notification: Notification) {
         notch = NotchPanelController(model: model.notch)
         model.start()
         #if DEBUG
@@ -30,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 }
 
 struct RootView: View {

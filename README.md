@@ -10,13 +10,25 @@ Dynamic Island and says one calm line when it matters. Built for Startup Buildat
 - **For each person:** the same score on the iPhone and the Mac, a weekly streak (4 good days win
   the week), Zen Gold for won weeks, and Zeno's lines written by Gemini from outcomes only.
 
-## Run the Mac app
+## Run it
 
 Needs macOS 26 and Xcode 26 or later (Swift 6.2).
 
+**Signed apps (Sign in with Apple, Google sign-in):** open `Apps/ZenModeOS.xcodeproj` and run
+the `ZenModeOSMac` or `ZenModeOSiPhone` scheme. Two files per app stay out of this repo:
+
+| File | What goes in it |
+|---|---|
+| `Apps/<Mac or iPhone>/Sources/GoogleService-Info.plist` | That app's Firebase config |
+| `Apps/Config/<Mac or iPhone>.local.xcconfig` | `GOOGLE_REVERSED_CLIENT_ID = <REVERSED_CLIENT_ID from that plist>` |
+
+The second one becomes the app's URL scheme, which is how Google sign-in hands the person back.
+
+**Quick local runs and tests (no signing):**
+
 ```bash
-scripts/build-mac-app.sh --open     # builds "ZenMode OS.app" and launches it
-swift test                          # Albeit (the design system)
+scripts/build-mac-app.sh --open     # unsigned "ZenMode OS.app", launched
+swift test                          # Albeit (the design system), on a Mac
 scripts/test-linux.sh               # Packages/ZenShared: contracts, rules, sync, fakes (also on Linux)
 scripts/snapshot-tour.sh /tmp/zen   # debug: renders every screen to PNG
 ```
@@ -27,17 +39,20 @@ their numbers is labelled **Demo data**.
 ## How it's built
 
 ```
-Package.swift      the Mac app: Albeit + ZenModeMac, on Packages/ZenShared (+ ZenPrivate when present)
+Package.swift      the Mac app: Albeit + ZenMacApp, on Packages/ZenShared (+ ZenCorePrivate when present)
 Sources/
-  Albeit/          the design system: tokens, type, Zeno (eight feelings, springs at 240 Hz),
-                   the lit backdrop, Liquid Glass components.
-  ZenModeMac/      the app: the notch panel, onboarding, Today, macOS platform code.
+  Albeit/        the design system: tokens, type, Zeno (eight feelings, springs at 240 Hz),
+                 the lit backdrop, Liquid Glass components.
+  ZenMacApp/     the Mac app as a library: the notch panel, onboarding, Today, macOS platform code.
+  ZenModeMac/    `swift run` host for ZenMacApp.
+Apps/            the Xcode project: the signed Mac and iPhone app targets, entitlements, Info.plists.
 Tests/AlbeitTests/
 Packages/ZenShared/  the shared, UI-free package (macOS, iOS and Linux)
   Sources/
     ZenAPI/        the one app contract: protocols and value types, plus the pure rules every
                    surface shares (the score, the weekly streak, the Zeno nudge schema and its
-                   guardrails, join codes, the 5+ cohort rule, quiet hours, cross-device sync).
+                   guardrails, join codes, the 5+ cohort rule, quiet hours, sign-in nonce,
+                   cross-device sync).
     ZenLogic/      rules identical to the server's: the Zen Score formula (ZenScoreRule), local
                    days, the cross-device combine (CombineRule), the name policy, and
                    ScoreSnapshotBuilder (the snapshot every device shows).
@@ -49,7 +64,7 @@ Packages/ZenShared/  the shared, UI-free package (macOS, iOS and Linux)
 ```
 
 - **Open core.** The app only ever sees the protocols in `ZenAPI`. Firebase, sync and the Gemini
-  callables live in a private package (`ZenPrivate`), which `Package.swift` links when that repo is
+  callables live in a private package (`ZenCorePrivate`), which `Package.swift` links when that repo is
   cloned beside this one; `ZEN_USE_MOCK=1` forces the fakes.
 - **Rules decide when Zeno speaks; Gemini decides what it says.** The server calls Gemini Flash with
   a response schema (`feeling`, a line of at most 40 characters, one `action`). The app validates
@@ -61,6 +76,9 @@ Packages/ZenShared/  the shared, UI-free package (macOS, iOS and Linux)
 - **The notch.** A click-through panel sits exactly on the camera housing; when Zeno speaks the
   black shape grows out of it, Zeno drops in, and the words arrive one by one. Zeno stays quiet in
   the class or work hours chosen at onboarding and every night from 22:30 to 07:00.
+- **Signing.** Team CBH6YW2NR9. Mac: Sign in with Apple, Keychain Sharing, hardened runtime, no
+  App Sandbox (the sandbox blocks the Accessibility API the tracker uses to tell YouTube from
+  Docs). iPhone: Sign in with Apple, Push, Family Controls.
 - **macOS.** App Nap is held off (activity + `NSAppSleepDisabled`), the front app is tracked from
   activation notifications rather than polling, and Accessibility is asked for once, with the reason.
 - **Accessibility.** VoiceOver labels on every control and on Zeno's lines, keyboard paths through
@@ -71,19 +89,19 @@ Bundle ids: `com.zenmodeos.buildathon.mac`, `com.zenmodeos.buildathon.ios`.
 ## Open core and the private package
 
 Everything in this repo is public (GPLv3) and builds with no backend at all. The live backend is
-a separate, private Swift package, `ZenPrivate`, that implements the ZenAPI protocols
+a separate, private Swift package, `ZenCorePrivate`, that implements the ZenAPI protocols
 (`AuthService`, `DaySyncService`, `ScoreService`, `CohortService`, `ZenoNudgeService`).
 
 ```
-ZenModeMac ──▶ Packages/ZenShared ◀── ZenPrivate (private repo, optional)
+ZenMacApp ──▶ Packages/ZenShared ◀── ZenCorePrivate (private repo, optional)
      └────────────────────────────────────▲
 ```
 
-- `ZenPrivate` depends only on `Packages/ZenShared` (ZenAPI for the contract, ZenLogic for the same
+- `ZenCorePrivate` depends only on `Packages/ZenShared` (ZenAPI for the contract, ZenLogic for the same
   combine the server runs), never on the root package, so there is no cycle.
-- The root `Package.swift` links `ZenPrivate` when the private repo is cloned beside this one, at
-  `../googlebthon-zenmodeos-private/ZenPrivate`. The app picks it in `Services.swift` with
-  `#if canImport(ZenPrivate)`, and falls back to the ZenMock fakes otherwise (every surface then
+- The root `Package.swift` links `ZenCorePrivate` when the private repo is cloned beside this one, at
+  `../googlebthon-zenmodeos-private` (its root `Package.swift`). The app picks it in `Services.swift` with
+  `#if canImport(ZenCorePrivate)`, and falls back to the ZenMock fakes otherwise (every surface then
   says **Demo data**). `ZEN_USE_MOCK=1` forces the fakes; on Linux the root always uses them.
 - Nothing here imports a backend SDK or names the backend's storage, and the guardrails below
   enforce that on every commit.
