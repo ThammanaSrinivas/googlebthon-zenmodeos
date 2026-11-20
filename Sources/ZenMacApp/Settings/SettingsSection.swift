@@ -302,12 +302,12 @@ private struct QuietSettings: View {
             }
             if isCustom {
                 HStack(spacing: ZenSpace.s5) {
-                    Stepper(value: Binding(get: { quiet.start }, set: { v in model.setQuiet(QuietHours(weekdays: quiet.weekdays, start: v, end: max(v + 30, quiet.end))) }),
-                            in: 7 * 60...21 * 60, step: 30) {
+                    Stepper(value: Binding<Int>(get: { quiet.start }, set: { v in model.setQuiet(QuietHours(weekdays: quiet.weekdays, start: v, end: max(v + 30, quiet.end))) }),
+                            in: Self.quietStartRange, step: 30) {
                         Text("From \(Self.clock(quiet.start))").font(ZenFont.number(13)).foregroundStyle(Color.zen.textHeading)
                     }
-                    Stepper(value: Binding(get: { quiet.end }, set: { v in model.setQuiet(QuietHours(weekdays: quiet.weekdays, start: min(quiet.start, v - 30), end: v)) }),
-                            in: 7 * 60 + 30...22 * 60 + 30, step: 30) {
+                    Stepper(value: Binding<Int>(get: { quiet.end }, set: { v in model.setQuiet(QuietHours(weekdays: quiet.weekdays, start: min(quiet.start, v - 30), end: v)) }),
+                            in: Self.quietEndRange, step: 30) {
                         Text("to \(Self.clock(quiet.end))").font(ZenFont.number(13)).foregroundStyle(Color.zen.textHeading)
                     }
                 }
@@ -342,6 +342,11 @@ private struct QuietSettings: View {
     private func chip(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
         SettingsChip(title: title, selected: on, action: action)
     }
+
+    /// Custom quiet hours, in minutes from midnight: starts 07:00–21:00, ends 07:30–22:30. Named so
+    /// the Steppers type-check quickly (Swift 6.3 timed out on the inline arithmetic).
+    static let quietStartRange: ClosedRange<Int> = 420...1260
+    static let quietEndRange: ClosedRange<Int> = 450...1350
 
     static func clock(_ minutes: Int) -> String {
         let h = minutes / 60, m = minutes % 60
