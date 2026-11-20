@@ -58,3 +58,35 @@ struct ActionsTests {
         }
     }
 }
+
+@Suite("Albeit: the bloom ornament")
+@MainActor
+struct OrnamentTests {
+    @Test("Seeds follow the size, stay inside the bloom and grow toward the rim", arguments: [24.0, 60, 180, 260])
+    func seeds(_ radius: Double) {
+        let r = CGFloat(radius)
+        let seeds = ZenBloomOrnament.bloomSeeds(radius: r)
+        #expect((34...700).contains(seeds.count))
+        for s in seeds {
+            #expect(hypot(s.offset.x, s.offset.y) + s.size / 2 <= r)
+            #expect(s.size > 0 && (0...1).contains(s.t))
+        }
+        #expect(seeds.first!.size < seeds.last!.size)
+    }
+
+    @Test("A bigger bloom has more seeds, never more than 700")
+    func scaling() {
+        let counts = [24.0, 60, 120, 180, 260, 400].map { ZenBloomOrnament.bloomSeeds(radius: CGFloat($0)).count }
+        #expect(counts == counts.sorted())
+        #expect(counts.last! <= 700)
+        #expect(ZenBloomOrnament.bloomSeeds(radius: 1).isEmpty)
+    }
+
+    @Test("The kolam lattice stays inside its circle", arguments: [96.0, 260, 480])
+    func kolam(_ side: Double) {
+        let s = CGFloat(side)
+        let dots = ZenBloomOrnament.kolamDots(side: s)
+        #expect(dots.count >= 9)
+        for p in dots { #expect(hypot(p.x - s / 2, p.y - s / 2) <= s / 2) }
+    }
+}
