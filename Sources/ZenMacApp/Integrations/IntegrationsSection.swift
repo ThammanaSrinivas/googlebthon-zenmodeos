@@ -18,13 +18,50 @@ enum IntegrationsCopy {
     static let soloCode = "Have a join code?"
     static let adminTitle = "For admins"
     static let adminBody = "Group scores and trends for cohorts of 5 or more, and a weekly digest written by Gemini. Never a name, an app or a minute."
+    static let tabTools = "Tools"
+    static let tabWork = "Your work week"
+    static let tabWorkspace = "Workspace"
+    static let suggested = "Suggested for you"
+    static let all = "All integrations"
+    static let search = "Search tools"
+    static let readsPrefix = "Reads:"
+    static let noneYet = "Nothing connected yet. Start with a suggestion below."
+    static let requestTitle = "Missing a tool?"
+    static let requestBody = "Tell us what you'd like ZenMode OS to work with."
+    static let requestThanks = "Thanks. We'll tell you when it lands."
+    static let requestPrompt = "Tool name, e.g. Trello"
+    static let request = "Request"
+    static let requestedPrefix = "Asked for:"
+
+    static func connectedEyebrow(_ n: Int) -> String { n == 0 ? "Connected" : "Connected · \(n)" }
+    static func noMatch(_ q: String) -> String { "Nothing matches \"\(q)\". Ask for it below." }
+    static func suggestedWhy(_ seat: Profile.Seat, _ w: Workspace?) -> String {
+        switch seat {
+        case .team: "What \(w?.name ?? "your team") uses, and what helps most at a desk."
+        case .campus: "For classes, deadlines and evenings in the hostel."
+        case .personal: "The few that help most when it's just you."
+        }
+    }
 }
 
-/// Integrations: the person's workspace (if a company or campus gave them the seat), what it can
-/// and can't see, its group challenge, and the tools ZenMode OS plugs into.
+/// Integrations, in three tabs so the page never sprawls: the tools (what's on, what suits you,
+/// everything else), your work week (time tracked by itself, for workspace seats), and the
+/// workspace (who gave the seat and what they can see).
 struct IntegrationsSection: View {
     @Environment(AppModel.self) private var model
-    @State private var filter: Integration.Kind? = nil
+    @State private var tab: Tab = .tools
+
+    enum Tab: String, CaseIterable, Identifiable {
+        case tools, work, workspace
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .tools: IntegrationsCopy.tabTools
+            case .work: IntegrationsCopy.tabWork
+            case .workspace: IntegrationsCopy.tabWorkspace
+            }
+        }
+    }
 
     private var workspace: Workspace? {
         switch model.profile.seat {
@@ -34,32 +71,39 @@ struct IntegrationsSection: View {
         }
     }
 
+    /// The work week is for workspace seats that track work, not campus or personal ones.
+    private var tabs: [Tab] { workspace.map { $0.isCampus ? [.tools, .workspace] : Tab.allCases } ?? [.tools, .workspace] }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ZenSpace.s5) {
                 header
-                if let workspace {
-                    HStack(alignment: .top, spacing: ZenSpace.s4) {
-                        WorkspaceCard(workspace: workspace)
-                        ChallengeCard(workspace: workspace)
-                            .frame(width: 340)
-                    }
-                } else {
-                    SoloCard()
-                }
-                if let workspace, !workspace.isCampus {
-                    HStack(alignment: .top, spacing: ZenSpace.s4) {
-                        WorkReportCard()
-                        TeamInsightsCard().frame(width: 340)
+                TabPills(tabs: tabs, selection: $tab)
+                Group {
+                    switch tab {
+                    case .tools: ToolsTab(workspace: workspace)
+                    case .work:
+                        HStack(alignment: .top, spacing: ZenSpace.s4) {
+                            WorkReportCard()
+                            TeamInsightsCard().frame(width: 340)
+                        }
+                    case .workspace: workspaceTab
                     }
                 }
-                toolGrid
-                adminNote
+                .id(tab)
+                .transition(.opacity.combined(with: .offset(y: 6)))
             }
             .padding(ZenSpace.s6)
+            .animation(ZenMotion.container, value: tab)
         }
         .scrollIndicators(.hidden)
-        .onAppear { model.integrations.markCalendar(model.calendarLink.state == .connected) }
+        .onAppear {
+            model.integrations.markCalendar(model.calendarLink.state == .connected)
+            #if DEBUG
+            // Debug renders: ZEN_INTEGRATIONS_TAB=tools|work|workspace.
+            if let raw = ProcessInfo.processInfo.environment["ZEN_INTEGRATIONS_TAB"], let t = Tab(rawValue: raw) { tab = t }
+            #endif
+        }
         .onChange(of: model.calendarLink.state) { _, s in model.integrations.markCalendar(s == .connected) }
     }
 
@@ -78,24 +122,19 @@ struct IntegrationsSection: View {
         }
     }
 
-    private var toolGrid: some View {
-        let tools = Integration.all.filter { i in
-            if let filter { return i.kind == filter }
-            // Campus tools show for campus seats; anyone can still find them under Campus.
-            return workspace?.isCampus == true || i.kind != .campus
-        }
-        return VStack(alignment: .leading, spacing: ZenSpace.s4) {
-            HStack {
-                Text("Your tools").zenType(.title).foregroundStyle(Color.zen.textHeading)
-                Spacer()
-                FilterPill(selection: $filter)
+    @ViewBuilder
+    private var workspaceTab: some View {
+        if let workspace {
+            VStack(alignment: .leading, spacing: ZenSpace.s4) {
+                HStack(alignment: .top, spacing: ZenSpace.s4) {
+                    WorkspaceCard(workspace: workspace)
+                    ChallengeCard(workspace: workspace).frame(width: 340)
+                }
+                adminNote
             }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: ZenSpace.s4), GridItem(.flexible(), spacing: ZenSpace.s4), GridItem(.flexible(), spacing: ZenSpace.s4)],
-                      alignment: .leading, spacing: ZenSpace.s4) {
-                ForEach(tools) { IntegrationCard(integration: $0, workspace: workspace) }
-            }
+        } else {
+            SoloCard()
         }
-        .animation(ZenMotion.container, value: filter)
     }
 
     private var adminNote: some View {
@@ -112,19 +151,19 @@ struct IntegrationsSection: View {
     }
 }
 
-/// All · Work · Time · Campus.
-private struct FilterPill: View {
-    @Binding var selection: Integration.Kind?
-    private let options: [(Integration.Kind?, String)] = [(nil, "All"), (.work, "Work"), (.time, "Time"), (.campus, "Campus")]
+/// The section's tabs, as the quiet segmented pill the app uses everywhere.
+private struct TabPills: View {
+    let tabs: [IntegrationsSection.Tab]
+    @Binding var selection: IntegrationsSection.Tab
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(options, id: \.1) { kind, label in
-                let on = kind == selection
-                Button { selection = kind } label: {
-                    Text(label).font(ZenFont.text(12.5, on ? .semibold : .medium))
+            ForEach(tabs) { t in
+                let on = t == selection
+                Button { selection = t } label: {
+                    Text(t.label).font(ZenFont.text(13, on ? .semibold : .medium))
                         .foregroundStyle(on ? Color.zen.textHeading : Color.zen.textBody)
-                        .padding(.horizontal, ZenSpace.s3).frame(height: 28)
+                        .padding(.horizontal, ZenSpace.s4).frame(height: 32)
                         .background { if on { Capsule().fill(Color.zen.surfaceRaised).shadow(color: .black.opacity(0.08), radius: 3, y: 1) } }
                         .contentShape(Capsule())
                 }
@@ -134,6 +173,7 @@ private struct FilterPill: View {
         }
         .padding(3)
         .background(Capsule().fill(Color.zen.surfaceSunk))
+        .fixedSize()
     }
 }
 
@@ -239,89 +279,5 @@ private struct SoloCard: View {
         }
         .padding(ZenSpace.s5)
         .glassCard(radius: ZenRadius.widget)
-    }
-}
-
-/// One tool: what Zeno does with it, what it reads, and its switch.
-private struct IntegrationCard: View {
-    @Environment(AppModel.self) private var model
-    let integration: Integration
-    let workspace: Workspace?
-    @State private var hovering = false
-
-    var body: some View {
-        let i = integration
-        let on = model.integrations.isOn(i, workspace: workspace)
-        let connecting = model.integrations.connecting.contains(i.id)
-        let managed = i.managedByWorkspace && workspace != nil
-        VStack(alignment: .leading, spacing: ZenSpace.s3) {
-            HStack(spacing: ZenSpace.s3) {
-                Image(systemName: i.symbol)
-                    .font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(hex: i.hue)))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(i.name).font(ZenFont.text(15, .semibold)).foregroundStyle(Color.zen.textHeading)
-                    Text(managed ? "Set by \(workspace!.name)" : (on ? IntegrationsCopy.connected : i.kind.rawValue.capitalized))
-                        .font(ZenFont.number(10)).tracking(0.6)
-                        .foregroundStyle(on ? Color.zen.textBrand : Color.zen.textCaption)
-                }
-                Spacer()
-                control(on: on, connecting: connecting, managed: managed)
-            }
-            Text(i.does).font(ZenFont.text(13.5)).foregroundStyle(Color.zen.textHeading)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Reads: \(i.reads)").zenType(.caption).foregroundStyle(Color.zen.textCaption)
-                .fixedSize(horizontal: false, vertical: true)
-            if on && i.id != "calendar" {
-                DemoTag(IntegrationsCopy.demo)
-            }
-        }
-        .padding(ZenSpace.s4)
-        .frame(maxWidth: .infinity, minHeight: 168, alignment: .topLeading)
-        .background {
-            RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous)
-                .fill(on ? Color.zen.surfaceTint.opacity(0.85) : Color.zen.surfaceCard.opacity(hovering ? 0.85 : 0.6))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous)
-                .strokeBorder(on ? Color.zen.brandFill.opacity(0.35) : Color.zen.borderHairline, lineWidth: 1)
-        }
-        .onHover { hovering = $0 }
-        .animation(ZenMotion.calm(ZenMotion.t2), value: on)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(i.name), \(on ? "connected" : "not connected"). \(i.does)")
-    }
-
-    @ViewBuilder
-    private func control(on: Bool, connecting: Bool, managed: Bool) -> some View {
-        let i = integration
-        if connecting {
-            ProgressView().controlSize(.small).accessibilityLabel("Connecting \(i.name)")
-        } else if managed {
-            Toggle(i.name, isOn: Binding(get: { on }, set: { model.integrations.setManaged(i, on: $0) }))
-                .labelsHidden().toggleStyle(.switch).tint(Color.zen.brandFill).controlSize(.small)
-                .help(IntegrationsCopy.managedNote)
-        } else if on {
-            Toggle(i.name, isOn: Binding(get: { true }, set: { if !$0 { disconnect() } }))
-                .labelsHidden().toggleStyle(.switch).tint(Color.zen.brandFill).controlSize(.small)
-        } else {
-            Button(IntegrationsCopy.connect) { connect() }
-                .buttonStyle(ZenSecondaryButtonStyle())
-                .controlSize(.small)
-        }
-    }
-
-    private func connect() {
-        if integration.id == "calendar" { model.connectCalendar() } else { model.integrations.connect(integration) }
-    }
-
-    private func disconnect() {
-        if integration.id == "calendar" {
-            // Access is the person's to take back in System Settings; this stops Zeno using it.
-            model.preferences.values.quietInCalendarEvents = false
-        }
-        model.integrations.disconnect(integration)
     }
 }
