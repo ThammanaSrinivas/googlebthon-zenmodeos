@@ -1,22 +1,144 @@
 <p align="center">
-  <img src="Apps/Mac/Sources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="128" alt="The ZenMode OS app icon">
+  <img src="Apps/Mac/Sources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" width="104" alt="The ZenMode OS app icon">
 </p>
 
-# ZenMode OS for Teams · Mac and iPhone
+<h1 align="center">ZenMode OS for Teams</h1>
 
-**Lock in. Log off.** ZenMode OS turns busy teams into focused teams. One Focus switch on the Mac
-turns on Do Not Disturb, sets your Slack status and books the time in your calendar, all at once.
-When the block ends, Zeno catches you up on what you missed, and when the workday ends it guards
-your evening. Zeno is a small character who lives in the Mac notch and the iPhone Dynamic Island.
-It says one calm line when it matters, and talks with you through Gemini Live when you ask.
+<p align="center">
+  <b>Lock in. Log off.</b><br>
+  One switch silences every tool. Zeno catches you up after.<br>
+  Your evenings stay yours. Leaders see how focus is going, never who.
+</p>
+
+<p align="center">
+  <img alt="Startup Buildathon India 2026" src="https://img.shields.io/badge/Startup_Buildathon_India-2026-2AA136?style=flat-square&labelColor=12160F">
+  <img alt="Gemini Live API and Gemini Flash" src="https://img.shields.io/badge/Gemini-Live_API_%2B_Flash-8E75FF?style=flat-square&labelColor=12160F">
+  <img alt="macOS 26 and iOS 26" src="https://img.shields.io/badge/macOS_26_%C2%B7_iOS_26-SwiftUI-F3F2EC?style=flat-square&labelColor=12160F">
+  <img alt="Swift 6.2" src="https://img.shields.io/badge/Swift-6.2-F05138?style=flat-square&labelColor=12160F">
+  <img alt="825 tests at the freeze" src="https://img.shields.io/badge/tests-825_at_the_freeze-2AA136?style=flat-square&labelColor=12160F">
+  <img alt="GPLv3" src="https://img.shields.io/badge/licence-GPLv3-FFC800?style=flat-square&labelColor=12160F">
+</p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/site-hero-dark.jpg">
+  <img src="docs/readme/site-hero.jpg" alt="The ZenMode OS for Teams landing page: Turn busy teams into focused teams, with a Focus mode switch in a cloud of notification badges">
+</picture>
+
+<p align="center">
+  <img src="docs/readme/zeno-notch.gif" width="640" alt="Zeno in the Mac notch: Focusing until 12:00, I'll keep watch. Later: Work's done, wrap up, then log off.">
+  <br>
+  <sub>Zeno lives in the Mac notch. A screen recording of the Mac app: one calm line when a block starts, another when the workday ends.</sub>
+</p>
+
+ZenMode OS turns busy teams into focused teams. One Focus switch on the Mac turns on Do Not
+Disturb, sets your Slack status and books the time in your calendar, all at once. When the block
+ends, Zeno catches you up on what you missed, and when the workday ends it guards your evening.
+Zeno is a small character who lives in the Mac notch and the iPhone Dynamic Island. It says one
+calm line when it matters, and talks with you through Gemini Live when you ask.
 
 Built for **Startup Buildathon India 2026** (Google × Hack2skill). Companies and campuses pay per
 seat, and every seat is a person with the full app. The admin sees anonymous team numbers for
 groups of 5 or more, plus a monthly report written by Gemini, and never a name next to a number.
 
-- [What's in it](#whats-in-it) · [Where Gemini comes in](#where-gemini-comes-in) · [Privacy](#privacy)
-- [Run it](#run-it) · [How it's built](#how-its-built) · [Focus Mode and its hooks](#focus-mode-and-its-hooks)
-- [Open core](#open-core-and-the-private-package) · [Cross-device sync](#cross-device-sync) · [Zeno Voice](#zeno-voice) · [Tests](#tests)
+<p align="center">
+  <a href="#a-day-with-zenmode-os">A day with it</a> ·
+  <a href="#the-site">The site</a> ·
+  <a href="#whats-in-it">What's in it</a> ·
+  <a href="#where-gemini-comes-in">Gemini</a> ·
+  <a href="#privacy">Privacy</a> ·
+  <a href="#run-it">Run it</a> ·
+  <a href="#how-its-built">How it's built</a> ·
+  <a href="#focus-mode-and-its-hooks">Hooks</a> ·
+  <a href="#open-core-and-the-private-package">Open core</a> ·
+  <a href="#cross-device-sync">Sync</a> ·
+  <a href="#zeno-voice">Zeno Voice</a> ·
+  <a href="#tests">Tests</a>
+</p>
+
+## A day with ZenMode OS
+
+Screens from the Mac app. Shots labelled **live** ran the signed app on the live backend, with
+Gemini writing the plan, the catch-up and the report; the team behind them is a seeded demo team,
+and Slack is a demo workspace. The rest run on the app's built-in fakes and say **Demo data** on
+screen.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-focus.jpg" alt="Today with Focus until 12:00 and a chip for each hook: Do Not Disturb, Slack, Calendar, Webhook">
+      <p><b>09:30 · Lock in.</b> One switch. Each hook shows a chip, and a hook that isn't set up says what it needs. Focus starts anyway.<br><sub>DEMO DATA</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-plan.jpg" alt="Plan my day: five tasks become a top three and four focus blocks, written by Zeno with Gemini">
+      <p><b>Plan my day.</b> Five tasks in, the top three and four focus blocks out, around your meetings. <i>Zeno · Gemini</i> only when Gemini wrote it.<br><sub>LIVE · GEMINI</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-catch-up.jpg" alt="What did I miss: three things need you, each with a drafted reply, one already sent">
+      <p><b>12:00 · What did I miss?</b> The Slack mentions and DMs from the block, as three cards with drafts. Nothing sends until you press Send.<br><sub>LIVE · GEMINI</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-after-hours.jpg" alt="Focus Mode hooks and work hours: Slack connected, Offline back Monday 9:30 AM">
+      <p><b>18:30 · Log off.</b> The four hooks and your work hours. When work ends, Slack says "Offline, back Monday 9:30 AM" and the Mac goes quiet.<br><sub>LIVE · DEMO SLACK WORKSPACE</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-your-day.jpg" alt="Your day: Zen Score 8.1 across iPhone and Mac, a 9-week streak, Zeno's line, the day as a clock and where the minutes went">
+      <p><b>Your day.</b> One Zen Score across your screens, the weekly streak, and where this Mac's minutes went. The iPhone sends its score only.<br><sub>DEMO DATA</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-week.jpg" alt="Week: four good days win the week, Zeno's read of the week, and questions to ask about it">
+      <p><b>Your week.</b> Four good days win the week. Zeno's read comes from your numbers, never from your apps.<br><sub>DEMO DATA</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-cards.jpg" alt="Zen Circle, Zen Gold, Zen Cards in Tamil, and a fanned deck of pattern cards">
+      <p><b>Circle, Gold and cards.</b> Your circle's score, Zen Gold for won weeks, Zen Cards in your own language, and the patterns Zeno noticed, dealt as cards.<br><sub>DEMO DATA</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-handoff.jpg" alt="Onboarding hand-off: the same Zen Score of 8.1 on an iPhone and a Mac, with a team join code">
+      <p><b>Same score, two screens.</b> Onboarding ends on the hand-off: the iPhone and the Mac show one number, and a six-character code joins your team.<br><sub>DEMO DATA</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-admin.jpg" alt="Team admin: rupees reclaimed a month, focus hours per person by week, and four metrics week on week">
+      <p><b>For leaders.</b> What the team's focus is worth, how the formula counts it, and four metrics week on week. Team numbers only, for 5 or more.<br><sub>LIVE · SEEDED DEMO TEAM</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/app-admin-report.jpg" alt="The monthly people report written by Gemini from team averages, with two suggestions">
+      <p><b>The monthly people report.</b> Written by Gemini from team averages, with two things to try. Never a name next to a number.<br><sub>LIVE · GEMINI · SEEDED DEMO TEAM</sub></p>
+    </td>
+  </tr>
+</table>
+
+## The site
+
+The landing page for the pitch, live on Firebase Hosting.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/readme/site-problem.jpg" alt="The problem: interrupted every 2 minutes, 59% burnout symptoms, $14B a year"></td>
+    <td width="50%"><img src="docs/readme/site-app.jpg" alt="The app tour: your whole day on one calm screen, inside a Mac"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/readme/site-people.jpg" alt="For your people: the work app that wants you to log off"></td>
+    <td width="50%"><img src="docs/readme/site-leaders.jpg" alt="For leaders: the big picture, only the big picture"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/readme/site-trust.jpg" alt="Trust: Bossware? Never heard of her. The deal, in writing"></td>
+    <td width="50%"><img src="docs/readme/site-how.jpg" alt="How it works in three steps, and Powered by Gemini: Zeno sees outcomes, never your apps"></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/readme/zeno-moods.jpg" alt="Zeno in five of its feelings: happy, pleasant, curious, calm and proud">
+  <br>
+  <sub>Zeno is drawn in code by Albeit, the design system in this repo: eight feelings, springs at 240 Hz.</sub>
+</p>
 
 ## What's in it
 
@@ -339,3 +461,10 @@ built). QR pairing between the iPhone and the Mac is in the code, but off in the
 
 GPLv3. Clash Display, Geist and Departure Mono load from the system when installed; the app
 falls back to the system faces otherwise.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/site-cta-dark.jpg">
+  <img src="docs/readme/site-cta.jpg" alt="Lock in. Log off. Zeno over hills at 6:30 PM, when work's gone quiet">
+</picture>
+
+<p align="center"><sub>Made with Gemini at Startup Buildathon India 2026 (Google × Hack2skill).</sub></p>
