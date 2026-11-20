@@ -96,6 +96,7 @@ struct TeamCard: View {
     @State private var question = ""
     @State private var showName = false
     @State private var keptDays = 0
+    @State private var joinText = ""
 
     var body: some View {
         let t = model.team
@@ -116,6 +117,7 @@ struct TeamCard: View {
             case .none:
                 Text("You're not on a team yet. Your admin's join link adds you; the admin only ever sees team numbers for 5 or more people.")
                     .zenType(.body).foregroundStyle(Color.zen.textBody).fixedSize(horizontal: false, vertical: true)
+                joinField
             case .failed(let why):
                 HStack {
                     Text(why).zenType(.body).foregroundStyle(Color.zen.scoreDeduct)
@@ -135,6 +137,33 @@ struct TeamCard: View {
             if t.load == .idle { await t.refresh(model.services.team) }
             keptDays = await model.focus.keptDaysThisWeek()
         }
+    }
+
+    /// A join link opens the team's join page; a 6-letter code joins here.
+    private var joinField: some View {
+        HStack(spacing: ZenSpace.s2) {
+            TextField("Paste your team's join link or code", text: $joinText)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(join)
+                .accessibilityLabel("Team join link or code")
+            Button("Join", action: join).buttonStyle(ZenPrimaryButtonStyle())
+                .disabled(joinText.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+    }
+
+    private func join() {
+        let text = joinText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: text), url.scheme == "https", url.path.hasPrefix("/join/") {
+            NSWorkspace.shared.open(url)
+        } else if JoinCode(text) != nil {
+            model.codeText = text
+            model.joinCohort()
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                await model.team.refresh(model.services.team)
+            }
+        }
+        joinText = ""
     }
 
     private func askZeno(_ team: TeamInfo) -> some View {
