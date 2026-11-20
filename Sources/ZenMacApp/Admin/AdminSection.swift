@@ -37,6 +37,8 @@ final class AdminModel {
         do {
             load = .loaded(try await service.dashboard(cohortId: team.cohortId))
         } catch {
+            // A refresh the view replaced (the team just became known) leaves the state to the new one.
+            if Task.isCancelled { return }
             switch error {
             case .notAdmin, .signedOut:
                 self.team = nil
@@ -212,14 +214,16 @@ struct AdminSection: View {
     @ViewBuilder
     private func actions(_ a: AdminModel) -> some View {
         let report: PeopleReport? = if case .loaded(let r) = a.report { r } else { nil }
+        let share = a.dashboard.flatMap { AdminStory.shareText($0, report: report) }
         HStack(spacing: ZenSpace.s3) {
             if let base = TeamWeb.base {
-                Button { NSWorkspace.shared.open(base.appending(path: "admin")) } label: {
+                let web = Button { NSWorkspace.shared.open(base.appending(path: "admin")) } label: {
                     Label(AdminCopy.webAdmin, systemImage: "safari")
                 }
-                .buttonStyle(ZenSecondaryButtonStyle())
+                // With nothing to share yet (under 5 people), the web admin is where to invite people.
+                if share == nil { web.buttonStyle(ZenPrimaryButtonStyle()) } else { web.buttonStyle(ZenSecondaryButtonStyle()) }
             }
-            if let d = a.dashboard, let text = AdminStory.shareText(d, report: report) {
+            if let d = a.dashboard, let text = share {
                 ShareLink(item: text, subject: Text("\(d.name) · \(AdminCopy.shareSubject)"), message: nil) {
                     Label(AdminCopy.share, systemImage: "square.and.arrow.up")
                 }
@@ -324,9 +328,12 @@ struct AdminSection: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: ZenSpace.s4) {
-                    if let gold { gold }
                     report
-                    trust
+                    HStack(alignment: .top, spacing: ZenSpace.s4) {
+                        if let gold { gold }
+                        trust
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
