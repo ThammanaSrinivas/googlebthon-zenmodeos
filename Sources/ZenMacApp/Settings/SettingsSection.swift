@@ -9,6 +9,8 @@ enum SettingsCopy {
     static let appearanceCaption = "Paper by day, ink by night, or follow the Mac."
     static let notchTitle = "Zeno in the notch"
     static let notchToggle = "Zeno speaks in the notch"
+    static let notchSounds = "A chime and a tap for important moments"
+    static let notchSoundsDetail = "Focus ended, messages that came in, work's done. Silent when the Mac's interface sounds are off."
     static let notchCaption = "One calm line when it matters. Never a countdown, never a nag."
     static let howOften = "How often"
     static let moments = "Speak up for"
@@ -247,12 +249,15 @@ private struct AppearanceSettings: View {
 }
 
 private struct NotchSettings: View {
+    @AppStorage(NotchCues.soundsKey) private var notchSounds = true
     @Environment(AppModel.self) private var model
 
     var body: some View {
         @Bindable var prefs = model.preferences
         SettingsGroup(title: SettingsCopy.notchTitle, caption: SettingsCopy.notchCaption) {
             SwitchRow(title: SettingsCopy.notchToggle, isOn: $prefs.values.zenoInNotch)
+            SwitchRow(title: SettingsCopy.notchSounds, detail: SettingsCopy.notchSoundsDetail, isOn: $notchSounds)
+                .disabled(!prefs.values.zenoInNotch)
             VStack(alignment: .leading, spacing: ZenSpace.s3) {
                 HStack {
                     Text(SettingsCopy.howOften).font(ZenFont.text(13.5, .semibold)).foregroundStyle(Color.zen.textHeading)
