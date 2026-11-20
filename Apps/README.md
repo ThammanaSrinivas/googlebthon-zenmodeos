@@ -50,3 +50,25 @@ Permissions and entitlements:
 | `Mac/ZenModeOS.entitlements` | `com.apple.security.device.audio-input` = YES. The Mac app runs with the hardened runtime (no App Sandbox), which blocks the mic without it; it is the same key a sandboxed app needs. |
 | Network | Outgoing WebSocket to `generativelanguage.googleapis.com`. Nothing to add without the sandbox; with one, `com.apple.security.network.client`. |
 | iPhone audio | `AVAudioVoiceIO` sets the session to play-and-record, voice chat, speaker, with voice processing on (echo cancellation), and deactivates it on `stop()`. |
+
+## The Mac's focus on the iPhone (Live Activity)
+
+When the Mac starts focus it writes `users/{uid}/live/focus`; the iPhone only reads it
+(`PhoneServices.focus`), shows "Focusing until 12:00 on your Mac" in the app, and puts the same on
+the Lock Screen and in the Dynamic Island. The pieces:
+
+| Where | What |
+|---|---|
+| `Sources/ZenPhoneApp/FocusActivity.swift` | `FocusActivityControlling` and the start / update / end decision; `PhoneModel` drives it (tests in `Tests/ZenPhoneAppTests/FocusFollowTests.swift`) |
+| `iPhone/Sources/FocusActivityController.swift` | The ActivityKit side, set as `ZenPhoneBackend.focusActivity` |
+| `iPhoneShared/FocusActivityAttributes.swift` | One file in both the app and the extension (ActivityKit pairs them by the type's name) |
+| `iPhoneWidgets/` | The `ZenModeOSiPhoneWidgets` extension (`com.zenmodeos.buildathon.ios.Widgets`): Lock Screen and Island views |
+
+Limits for now: iOS only lets the app start an activity while it's in the foreground, and the
+listener sleeps with the app. So open the iPhone app once after the Mac starts focus; if the Mac
+stops early while the app is asleep, the activity stays until its end time (then reads "Focus
+done") or the app's next launch. Starting and ending it from the server would take ActivityKit
+push tokens and an APNs push from a Cloud Function.
+
+Demo without a Mac (debug builds): run the iPhone app with `ZEN_DEMO_FOCUS=1`: the fakes, signed
+in, with the Mac focusing for the next 50 minutes.

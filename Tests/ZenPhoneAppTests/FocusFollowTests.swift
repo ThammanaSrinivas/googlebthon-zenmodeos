@@ -205,6 +205,30 @@ struct FocusFollowTests {
         #expect(activity.starts == 2)
     }
 
+    @Test("A refused start is retried a few times on its own, then left for the next change")
+    func retried() async {
+        let focus = ReadOnlyFocus(), activity = RecordingActivity()
+        activity.refuse = true
+        let m = phone(focus: focus, activity: activity)
+        m.startRetryDelay = .milliseconds(20)
+        m.start()
+        await focus.macSays(LiveFocus(active: true, until: minutes(50)))
+        #expect(await eventually { activity.starts == 1 + PhoneModel.startRetryLimit })
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(activity.starts == 1 + PhoneModel.startRetryLimit)
+
+        // A cold launch: refused at first, then the system lets it through.
+        let later = RecordingActivity()
+        later.refuse = true
+        let n = phone(focus: focus, activity: later)
+        n.startRetryDelay = .milliseconds(200)
+        n.start()
+        #expect(await eventually { later.starts == 1 })
+        later.refuse = false
+        #expect(await eventually { later.onShow != nil })
+        #expect(later.starts == 2 && n.activityUntil != nil)
+    }
+
     @Test("Signing out ends the activity and the line")
     func signOut() async {
         let focus = ReadOnlyFocus(), activity = RecordingActivity()
@@ -245,6 +269,20 @@ struct FocusAdoptTests {
         #expect(m.activityUntil == until)
         #expect(await eventually { m.focusingUntil == until })
         #expect(activity.calls == [.adopt])
+    }
+
+    @Test("Coming to the foreground before the Mac's word arrives doesn't end it")
+    func foregroundFirst() async {
+        let until = minutes(30)
+        let focus = ReadOnlyFocus(), activity = RecordingActivity(leftover: until)
+        await focus.macSays(LiveFocus(active: true, until: until))
+        let m = phone(focus: focus, activity: activity)
+        m.start()
+        m.becameActive()
+        #expect(await eventually { m.focusingUntil == until })
+        m.becameActive()
+        #expect(activity.calls == [.adopt])
+        #expect(activity.onShow == until)
     }
 
     @Test("The Mac stopped while the phone was away: ended")

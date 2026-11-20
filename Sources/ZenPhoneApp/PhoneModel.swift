@@ -75,6 +75,14 @@ final class PhoneModel {
     private var scoreTask: Task<Void, Never>?
     private var focusTask: Task<Void, Never>?
     private var expiryTask: Task<Void, Never>?
+    /// The Mac's word has arrived since sign-in. Until it does, an adopted activity stays up.
+    private var heardFromMac = false
+    /// A refused start is tried again a few times (a cold launch can ask a moment before the
+    /// system counts the app as in the foreground), then on the next change or foregrounding.
+    private var retryTask: Task<Void, Never>?
+    private var startRetries = 0
+    static let startRetryLimit = 5
+    var startRetryDelay: Duration = .seconds(1)
     private let measure: any PhoneDayMeasure = NotMeasuredYet()
     private let activity: any FocusActivityControlling
     /// The end time of the Live Activity on show, nil when none is.
@@ -98,6 +106,8 @@ final class PhoneModel {
     /// Back in the foreground: an end time may have passed, or a start may have been refused while
     /// the app was in the background.
     func becameActive() {
+        guard heardFromMac else { return }
+        startRetries = 0
         reconcileFocus()
     }
 
@@ -157,6 +167,7 @@ final class PhoneModel {
             user = nil
             snapshot = nil
             liveFocus = .idle
+            heardFromMac = false
             reconcileFocus()
         }
     }
@@ -183,6 +194,7 @@ final class PhoneModel {
             for await next in focus.liveFocus() {
                 guard !Task.isCancelled else { return }
                 self?.liveFocus = next
+                self?.heardFromMac = true
                 self?.reconcileFocus()
             }
         }
@@ -196,11 +208,30 @@ final class PhoneModel {
         focusingUntil = liveFocus.isFocusing(at: now) ? liveFocus.until : nil
         switch FocusActivityStep.next(shown: activityUntil, live: liveFocus, now: now) {
         case .keep: break
-        case .start(let until): activityUntil = activity.start(until: until) ? until : nil
+        case .start(let until):
+            if activity.start(until: until) {
+                activityUntil = until
+                retryTask?.cancel()
+                startRetries = 0
+            } else {
+                retryStartSoon()
+            }
         case .update(let until): activity.update(until: until); activityUntil = until
         case .end: endActivity()
         }
         scheduleExpiry()
+    }
+
+    private func retryStartSoon() {
+        retryTask?.cancel()
+        guard startRetries < Self.startRetryLimit else { return }
+        startRetries += 1
+        let delay = startRetryDelay
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.reconcileFocus()
+        }
     }
 
     private func endActivity() {
