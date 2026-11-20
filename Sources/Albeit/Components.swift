@@ -151,7 +151,21 @@ extension View {
     public func glassCard(radius: CGFloat = ZenRadius.xxl, tint: Color? = nil) -> some View {
         self
             .glassEffect(tint.map { .regular.tint($0) } ?? .regular, in: .rect(cornerRadius: radius))
-            .shadow(color: Color(hex: 0x12160F, alpha: 0.12), radius: 22, y: 14)
+            .modifier(ZenLift())
+    }
+}
+
+/// The lift under a card: a thin contact shadow and a wide, faint ambient one. Light enough that
+/// a page of cards reads as paper on paper, never a stack of heavy slabs. Dark mode lets the glass
+/// edge do the work and keeps only a whisper of shadow.
+public struct ZenLift: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    public init() {}
+    public func body(content: Content) -> some View {
+        let dark = scheme == .dark
+        content
+            .shadow(color: Color(hex: 0x12160F, alpha: dark ? 0.18 : 0.05), radius: 1.5, y: 1)
+            .shadow(color: Color(hex: 0x12160F, alpha: dark ? 0.22 : 0.06), radius: 18, y: 10)
     }
 }
 

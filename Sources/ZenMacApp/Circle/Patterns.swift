@@ -100,7 +100,7 @@ enum Archetype: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// The pattern family (Albeit §16).
-enum PatternKind: String, CaseIterable, Identifiable, Sendable {
+enum PatternKind: String, CaseIterable, Identifiable, Sendable, Codable {
     case bloom = "Bloom", kolam = "Kolam", garland = "Garland", horizon = "Horizon"
 
     var id: String { rawValue }

@@ -55,7 +55,22 @@ struct RootView: View {
             }
         }
         .transition(.opacity)
-        // Albeit's light is the designed ground; the ink (dark) pass comes with the night backdrop.
-        .preferredColorScheme(.light)
+        .preferredColorScheme(scheme)
+    }
+
+    /// Paper, ink, or whatever the Mac is set to. ZEN_APPEARANCE=dark|light forces one (debug renders).
+    private var scheme: ColorScheme? {
+        #if DEBUG
+        switch ProcessInfo.processInfo.environment["ZEN_APPEARANCE"] {
+        case "dark": return .dark
+        case "light": return .light
+        default: break
+        }
+        #endif
+        switch model.preferences.values.appearance {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
     }
 }
