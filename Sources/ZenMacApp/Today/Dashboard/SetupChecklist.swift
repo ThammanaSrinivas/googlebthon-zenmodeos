@@ -289,9 +289,15 @@ private struct SetupRow: View {
                         Text(step.action).font(ZenFont.text(12.5, .semibold))
                         Image(systemName: "chevron.right").font(.system(size: 9.5, weight: .bold))
                     }
-                    .foregroundStyle(isNext ? Color.zen.onActionPrimary : Color.zen.textBrand)
+                    .foregroundStyle(Color.zen.textBrand)
                     .padding(.horizontal, isNext ? 10 : 0).frame(height: 26)
-                    .background { if isNext { Capsule().fill(Color.zen.actionPrimary) } }
+                    // The next step wears a green rim: emphasis, never a second primary.
+                    .background {
+                        if isNext {
+                            Capsule().fill(Color.zen.surfaceTint)
+                                .overlay(Capsule().strokeBorder(Color.zen.textBrand.opacity(0.6), lineWidth: 1))
+                        }
+                    }
                     .offset(x: hovering && !isNext ? 2 : 0)
                 }
             }
