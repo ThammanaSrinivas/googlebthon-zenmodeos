@@ -53,9 +53,13 @@ struct DashboardView: View {
 
                         compartment(.rewards) {
                             pair(wide, height: 300, trailingWidth: min(420, geo.size.width * 0.36)) {
-                                CircleGlanceCard().id(Anchor.circle)
+                                CircleGlanceCard()
+                                    .opensOnClick(radius: ZenRadius.xxl, label: HomeCopy.openCircle) { model.navigate = .cohort }
+                                    .id(Anchor.circle)
                             } trailing: {
-                                GoldGlanceCard { model.navigate = .gold }.id(Anchor.gold)
+                                GoldGlanceCard { model.navigate = .gold }
+                                    .opensOnClick(radius: ZenRadius.widget, label: "Open Zen Gold") { model.navigate = .gold }
+                                    .id(Anchor.gold)
                             }
                         }
 

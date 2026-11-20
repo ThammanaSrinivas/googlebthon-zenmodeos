@@ -101,3 +101,34 @@ struct QuietIconButtonStyle: ButtonStyle {
         }
     }
 }
+
+/// A card that opens somewhere: a click anywhere on it opens, and pointing at it lifts it a touch and
+/// rims it in green. The card's own link stays the keyboard's way in. Still under Reduce Motion.
+struct OpensOnClick: ViewModifier {
+    let radius: CGFloat
+    let label: String
+    let open: () -> Void
+    @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Color.zen.brandFill.opacity(hovering ? 0.55 : 0), lineWidth: 1.5)
+                .allowsHitTesting(false))
+            .offset(y: hovering && !reduceMotion ? -2 : 0)
+            .shadow(color: Color(hex: 0x12160F, alpha: hovering ? 0.1 : 0), radius: 16, y: 10)
+            .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .onTapGesture(perform: open)
+            .onHover { hovering = $0 }
+            .pointerStyle(.link)
+            .animation(ZenMotion.calm(ZenMotion.t2), value: hovering)
+            .accessibilityAction(named: label, open)
+    }
+}
+
+extension View {
+    func opensOnClick(radius: CGFloat, label: String, _ open: @escaping () -> Void) -> some View {
+        modifier(OpensOnClick(radius: radius, label: label, open: open))
+    }
+}
