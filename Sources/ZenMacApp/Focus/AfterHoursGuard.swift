@@ -164,7 +164,7 @@ struct WorkHoursCard: View {
                     .frame(width: 36, height: 36)
                     .background(RoundedRectangle(cornerRadius: ZenRadius.sm, style: .continuous).fill(Color.zen.surfaceTint))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Work hours · after-hours guard").font(ZenFont.text(15, .semibold)).foregroundStyle(Color.zen.textHeading)
+                    Text("Work hours").font(ZenFont.text(15, .semibold)).foregroundStyle(Color.zen.textHeading)
                     Text(g.offline ? (g.lastStatus ?? "Offline for the evening") : "At the end: a wrap-up, Slack “Offline”, and the Mac goes quiet.")
                         .zenType(.caption).foregroundStyle(Color.zen.textCaption)
                 }
@@ -178,6 +178,7 @@ struct WorkHoursCard: View {
                 DatePicker("End", selection: $end, displayedComponents: .hourAndMinute)
             }
             .font(ZenFont.text(13))
+            .foregroundStyle(Color.zen.textBody)
             HStack(spacing: 6) {
                 ForEach(1...7, id: \.self) { d in
                     let on = days.contains(d)
