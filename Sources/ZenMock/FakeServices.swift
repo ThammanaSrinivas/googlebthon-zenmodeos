@@ -21,6 +21,14 @@ public struct FakeAuth: AuthService {
         return ZenMock.demoUser
     }
 
+    public func signInWithApple(identityToken: String, rawNonce: String, fullName: PersonNameComponents?) async throws(AuthError) -> ZenUser {
+        guard !identityToken.isEmpty else { throw .cancelled }
+        let name = fullName?.givenName ?? ZenMock.demoUser.displayName
+        return ZenUser(uid: "demo-apple", displayName: name)
+    }
+
+    @MainActor public func handle(url: URL) -> Bool { false }
+
     public func newPairingCode() async throws(AuthError) -> PairingCode {
         PairingCode(code: JoinCode("K4M7QX")!, expiresAt: Date().addingTimeInterval(5 * 60))
     }

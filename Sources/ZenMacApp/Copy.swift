@@ -113,6 +113,7 @@ enum Copy {
         static let simulate = "Simulate the iPhone's approval"
         static let rotates = "This code changes every 5 minutes and works once."
         static let expired = "That code just changed."
+        static let appleFailed = "Sign in with Apple didn't finish. Try again, or scan the code instead."
     }
 
     enum Handoff {

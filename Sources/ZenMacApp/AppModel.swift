@@ -173,6 +173,33 @@ final class AppModel {
         paired(ZenUser(uid: "demo-kamal", displayName: "Kamal"))
     }
 
+    /// The nonce whose hash went into the current Sign in with Apple request.
+    private(set) var appleNonce = SignInNonce.make()
+
+    func prepareAppleRequest() -> String {
+        appleNonce = SignInNonce.make()
+        return appleNonce.sha256
+    }
+
+    func signInWithApple(identityToken: Data?, fullName: PersonNameComponents?) {
+        guard let identityToken, let token = String(data: identityToken, encoding: .utf8) else {
+            pairState = .failed(Copy.Bring.appleFailed)
+            return
+        }
+        pairTask?.cancel()
+        pairState = .approving
+        let nonce = appleNonce.raw
+        Task {
+            do { paired(try await services.auth.signInWithApple(identityToken: token, rawNonce: nonce, fullName: fullName)) }
+            catch { pairState = .failed(Copy.Bring.appleFailed) }
+        }
+    }
+
+    /// Google sign-in comes back through the app's URL scheme.
+    func handle(url: URL) {
+        _ = services.auth.handle(url: url)
+    }
+
     func signInWithGoogle() {
         pairTask?.cancel()
         pairState = .approving

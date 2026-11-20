@@ -6,5 +6,5 @@ build/
 DerivedData/
 # Firebase app config and local secrets: never in this repo (it goes public).
 GoogleService-Info*.plist
-Config/*.local.xcconfig
+*.local.xcconfig
 xcuserdata/

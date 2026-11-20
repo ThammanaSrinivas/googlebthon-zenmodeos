@@ -34,6 +34,12 @@ public enum AuthError: Error, Equatable, Sendable {
 public protocol AuthService: Sendable {
     func currentUser() async -> ZenUser?
     func signInWithGoogle() async throws(AuthError) -> ZenUser
+    /// Native Sign in with Apple: the app gets the identity token from Apple's sheet and hands it
+    /// over with the nonce it hashed into the request.
+    func signInWithApple(identityToken: String, rawNonce: String, fullName: PersonNameComponents?) async throws(AuthError) -> ZenUser
+    /// Google sign-in comes back through the app's REVERSED_CLIENT_ID URL scheme.
+    /// Returns true when the URL belonged to sign-in.
+    @MainActor func handle(url: URL) -> Bool
     /// A fresh code; codes rotate every 5 minutes and work once.
     func newPairingCode() async throws(AuthError) -> PairingCode
     /// Returns once a phone approves the code.
