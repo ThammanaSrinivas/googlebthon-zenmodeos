@@ -169,67 +169,6 @@ public struct ZenLift: ViewModifier {
     }
 }
 
-/// Primary: ink on paper (green on ink in the dark), a pill, one per screen.
-public struct ZenPrimaryButtonStyle: ButtonStyle {
-    public init() {}
-
-    public func makeBody(configuration: Configuration) -> some View {
-        PrimaryBody(configuration: configuration)
-    }
-
-    private struct PrimaryBody: View {
-        let configuration: ButtonStyleConfiguration
-        @Environment(\.isEnabled) private var isEnabled
-        @State private var hovering = false
-
-        var body: some View {
-            configuration.label
-                .font(ZenFont.text(14, .semibold))
-                .foregroundStyle(Color.zen.onActionPrimary)
-                .padding(.horizontal, ZenSpace.s5)
-                .frame(minHeight: 40)
-                .background(Capsule().fill(hovering ? Color(hex: 0x0F7A18) : Color.zen.actionPrimary))
-                .opacity(isEnabled ? 1 : 0.4)
-                .scaleEffect(configuration.isPressed ? 0.97 : 1)
-                .animation(ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
-                .animation(ZenMotion.calm(ZenMotion.t2), value: hovering)
-                .onHover { hovering = $0 }
-                .contentShape(Capsule())
-        }
-    }
-}
-
-/// Secondary: glass, quiet.
-public struct ZenSecondaryButtonStyle: ButtonStyle {
-    public init() {}
-
-    public func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(ZenFont.text(14, .semibold))
-            .foregroundStyle(Color.zen.textHeading)
-            .padding(.horizontal, ZenSpace.s5)
-            .frame(minHeight: 40)
-            .glassEffect(.regular.interactive(), in: .capsule)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(ZenMotion.calm(ZenMotion.t1), value: configuration.isPressed)
-            .contentShape(Capsule())
-    }
-}
-
-/// A text-only action in the brand colour.
-public struct ZenLinkButtonStyle: ButtonStyle {
-    public init() {}
-
-    public func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(ZenFont.text(13.5, .semibold))
-            .foregroundStyle(Color.zen.textBrand)
-            .opacity(configuration.isPressed ? 0.6 : 1)
-            .frame(minHeight: 32)
-            .contentShape(Rectangle())
-    }
-}
-
 /// A small honest label on anything that isn't real yet.
 public struct DemoTag: View {
     var text: String
