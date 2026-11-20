@@ -69,6 +69,17 @@ extension AppModel {
         }
     }
 
+    /// Plan my day: today's calendar and the open tasks, through zenoPlanDay.
+    func planMyDay() async {
+        let end = afterHours.hours.end
+        await dayPlan.planDay(work: services.work, events: calendarLink.events, dayEnd: end, cohortId: team.team?.cohortId)
+    }
+
+    /// Wrap up: done and open tasks with today's focus, through zenoWrapUp.
+    func wrapUpDay() async {
+        await dayPlan.wrapUp(work: services.work, today: await focus.today())
+    }
+
     /// The end of work hours: Zeno nudges a wrap-up.
     func workDayEnded() {
         notch.speak(.init(feeling: .sleepy, kicker: "Work's done", line: "Wrap up, then log off."), hold: .seconds(3.4), respectQuiet: false)

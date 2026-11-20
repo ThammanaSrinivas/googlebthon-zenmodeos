@@ -186,6 +186,14 @@ final class FocusModel {
         await engine.addAfterHours(minutes: minutes, day: day)
     }
 
+    /// Days this week (Monday to today) with at least one kept block: a Zen Gold week needs 5.
+    func keptDaysThisWeek() async -> Int {
+        let e = engine
+        var n = 0
+        for day in ISOWeek.daysSoFar(Date()) where await e.daily(on: day).blocksKept > 0 { n += 1 }
+        return n
+    }
+
     func today() async -> DailyFocus {
         let e = engine
         return await e.daily(on: e.dayKey(Date()))

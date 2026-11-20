@@ -60,7 +60,7 @@ let package = Package(
         // The iPhone app: sign-in, the live score, approving a Mac.
         .target(name: "ZenPhoneApp", dependencies: phoneDependencies, swiftSettings: swift6),
         .testTarget(name: "AlbeitTests", dependencies: ["Albeit"], swiftSettings: swift6),
-        .testTarget(name: "ZenMacAppTests", dependencies: ["ZenMacApp", shared("ZenAPI")], swiftSettings: swift6),
+        .testTarget(name: "ZenMacAppTests", dependencies: ["ZenMacApp", shared("ZenAPI"), shared("ZenFocus"), shared("ZenMock")], swiftSettings: swift6),
         .testTarget(name: "ZenPhoneAppTests", dependencies: ["ZenPhoneApp", shared("ZenAPI"), shared("ZenMock")], swiftSettings: swift6),
     ]
 )

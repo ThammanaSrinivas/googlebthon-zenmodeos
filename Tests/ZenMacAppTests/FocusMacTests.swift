@@ -5,6 +5,7 @@ import FoundationNetworking
 import Testing
 import ZenAPI
 import ZenFocus
+import ZenMock
 @testable import ZenMacApp
 
 /// Slack answered from canned JSON, per method; records what was sent. No network.
@@ -133,4 +134,80 @@ struct FocusSettingsTests {
         #expect(u.timeIntervalSince(base) >= 30 * 60)
         #expect([0, 30].contains(cal.component(.minute, from: u)))
     }
+}
+
+@MainActor
+@Suite("Plan my day, Wrap up, and the team")
+struct DayPlanAndTeamTests {
+    @Test("Tasks are kept for the day; at most 20; blanks ignored")
+    func tasks() {
+        let d = scratchDefaults()
+        let p = DayPlanModel(defaults: d)
+        p.add("  Ship UPI autopay ")
+        p.add("   ")
+        for i in 0..<30 { p.add("t\(i)") }
+        #expect(p.tasks.count == 20 && p.tasks.first?.title == "Ship UPI autopay")
+        p.toggle(p.tasks[0].id)
+        #expect(DayPlanModel(defaults: d).tasks.first?.done == true)
+    }
+
+    @Test("When zenoPlanDay can't be reached, the app plans around busy events on its own")
+    func planFallback() async {
+        let p = DayPlanModel(defaults: scratchDefaults())
+        p.add("Ship")
+        let now = Calendar.current.date(bySettingHour: 9, minute: 32, second: 0, of: Date())!
+        let meeting = CalendarLink.Event(id: "m", title: "Standup", start: now.addingTimeInterval(28 * 60), end: now.addingTimeInterval(58 * 60),
+                                         isAllDay: false, isBusy: true, color: .gray)
+        await p.planDay(work: StubWork(fail: true), events: [meeting], dayEnd: "18:30", cohortId: nil, now: now)
+        #expect(p.state == .planned && p.plan?.fallback == true)
+        #expect(p.plan?.top3 == ["Ship"])
+        // 09:35 + 50 would run into the 10:00 standup, so the first block starts after it.
+        #expect(p.plan?.blocks.first?.start == "10:30")
+    }
+
+    @Test("Busy events become today's HH:mm spans; free and all-day ones don't")
+    func busy() {
+        let now = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date())!
+        let e = { (busy: Bool, allDay: Bool) in
+            CalendarLink.Event(id: UUID().uuidString, title: "x", start: now.addingTimeInterval(3600), end: now.addingTimeInterval(7200),
+                               isAllDay: allDay, isBusy: busy, color: .gray)
+        }
+        let spans = DayPlanModel.busyToday([e(true, false), e(false, false), e(true, true)], now: now)
+        #expect(spans == [DayBlock(start: "10:00", end: "11:00", title: "x")])
+    }
+
+    @Test("Wrap up falls back to the numbers and the open tasks")
+    func wrapFallback() async {
+        let p = DayPlanModel(defaults: scratchDefaults())
+        p.add("a"); p.add("b")
+        p.toggle(p.tasks[0].id)
+        await p.wrapUp(work: StubWork(fail: true), today: DailyFocus(focusMin: 140, blocksStarted: 3, blocksKept: 2))
+        #expect(p.wrap?.moveToTomorrow == ["b"] && p.wrap?.fallback == true)
+        #expect(p.wrap?.summary.contains("2 focus blocks") == true)
+    }
+
+    @Test("ISO weeks: the key and the days so far, Monday first")
+    func isoWeek() {
+        let ist = TimeZone(identifier: "Asia/Kolkata")!
+        let friday = Date(timeIntervalSince1970: 1_795_156_200)   // Fri 20 Nov 2026 12:00 IST
+        #expect(ISOWeek.key(friday, timeZone: ist) == "2026-W47")
+        #expect(ISOWeek.daysSoFar(friday, timeZone: ist) == ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"])
+    }
+
+    @Test("The team loads, Ask shows grounding, and gold claims answer the sponsor")
+    func team() async {
+        let t = TeamModel()
+        await t.refresh(FakeTeamForTests())
+        #expect(t.team?.goldSponsorInr == 250)
+        await t.ask("What's the Q4 goal?", work: FakeZenoWork())
+        #expect(t.ask == .answered(AskResult(answer: AskResult.notInNotes, grounded: false, fallback: true)))
+        await t.claimGold(FakeTeamForTests())
+        #expect(t.claim == .claimed(250))
+    }
+}
+
+struct FakeTeamForTests: TeamService {
+    func myTeam() async throws(TeamError) -> TeamInfo? { TeamInfo(cohortId: "c1", name: "Payments", goldSponsorInr: 250, hasNotes: true) }
+    func focusReportLink(isoWeek: String, showName: Bool) async throws(TeamError) -> FocusReportLink { throw .offline }
+    func claimGold(cohortId: String, isoWeek: String) async throws(TeamError) -> Int { 250 }
 }

@@ -23,6 +23,7 @@ struct DashboardView: View {
                         topBar
                         FocusCard()
                         CatchUpCardView()
+                        DayPlanCard()
                         HeroCard(day: dash.day).id(Anchor.hero)
                         ScreensSection().id(Anchor.screens)
                         Group {
@@ -40,6 +41,7 @@ struct DashboardView: View {
                                 }
                             }
                         }
+                        TeamCard()
                         PatternDeckCard().frame(height: 440).id(Anchor.deck)
                     }
                     .padding(.horizontal, ZenSpace.s6)
