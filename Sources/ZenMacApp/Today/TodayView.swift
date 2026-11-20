@@ -13,8 +13,13 @@ struct TodayView: View {
     @State private var debugRail = false
 
     enum Section: String, CaseIterable, Identifiable {
-        case today = "Today", week = "Week", calendar = "Calendar", cohort = "Zen Circle", gold = "Zen Gold", integrations = "Integrations", settings = "Settings"
+        case today = "Today", week = "Week", calendar = "Calendar", cohort = "Zen Circle", gold = "Zen Gold", integrations = "Integrations",
+             admin = "Team admin", settings = "Settings"
         var id: String { rawValue }
+
+        /// The sidebar's sections: Team admin only for the team's admin.
+        static func visible(isAdmin: Bool) -> [Section] { allCases.filter { $0 != .admin || isAdmin } }
+
         var symbol: String {
             switch self {
             case .today: "sun.max"
@@ -23,6 +28,7 @@ struct TodayView: View {
             case .cohort: "circle.hexagongrid"
             case .gold: "sparkles"
             case .integrations: "square.grid.2x2"
+            case .admin: "person.2.badge.gearshape"
             case .settings: "gearshape"
             }
         }
@@ -94,6 +100,7 @@ struct TodayView: View {
         case .cohort: CircleSection()
         case .gold: GoldSection()
         case .integrations: IntegrationsSection()
+        case .admin: AdminSection()
         case .settings: SettingsSection()
         }
     }
@@ -133,7 +140,7 @@ private struct Sidebar: View {
                 .padding(.top, rail ? ZenSpace.s2 : -30)
             }
             searchButton.padding(.top, ZenSpace.s3).padding(.bottom, ZenSpace.s3)
-            ForEach(TodayView.Section.allCases) { s in
+            ForEach(TodayView.Section.visible(isAdmin: model.admin.team != nil)) { s in
                 item(s)
             }
             Spacer()

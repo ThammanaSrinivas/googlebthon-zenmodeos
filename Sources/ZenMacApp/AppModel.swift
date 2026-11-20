@@ -24,7 +24,9 @@ final class AppModel {
     var codeText = "" { didSet { let clean = JoinCode.sanitize(codeText); if clean != codeText { codeText = clean } } }
     private(set) var codeState: CodeState = .idle
     private(set) var cohort: CohortSummary?
-    private(set) var user: ZenUser?
+    private(set) var user: ZenUser? {
+        didSet { if user != oldValue { Task { await admin.refreshTeam(services.admin) } } }
+    }
     private(set) var pairing: PairingCode?
     private(set) var pairState: PairState = .waiting
     private(set) var snapshot: ScoreSnapshot?
@@ -45,6 +47,7 @@ final class AppModel {
     func start() {
         services = ZenMacBackend.make()
         startFocusMode()
+        Task { await admin.refreshTeam(services.admin) }
         makeVoice()
         AppNap.holdOff()
         frontmost.start()
@@ -293,6 +296,8 @@ final class AppModel {
     let dayPlan: DayPlanModel
     /// The person's team: Ask Zeno, the Focus Report link, the Zen Gold claim.
     let team = TeamModel()
+    /// The team admin's view; its section shows only when this person administers a team.
+    let admin = AdminModel()
     /// Opens Integrations on this tab (a card's "Set up hooks").
     var integrationsTab: IntegrationsSection.Tab?
 

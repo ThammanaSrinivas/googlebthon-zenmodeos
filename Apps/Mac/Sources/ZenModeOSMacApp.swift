@@ -28,7 +28,7 @@ struct ZenModeOSMacApp: App {
             return Services(auth: live.auth, nudges: live.nudges, cohorts: live.cohorts,
                             scores: live.scores, days: live.days,
                             voiceTokens: live.voiceTokens, cards: live.cards,
-                            focus: live.focus, work: live.work, team: live.team, isDemo: false)
+                            focus: live.focus, work: live.work, team: live.team, admin: live.admin, isDemo: false)
         }
         #endif
         return .fakes()

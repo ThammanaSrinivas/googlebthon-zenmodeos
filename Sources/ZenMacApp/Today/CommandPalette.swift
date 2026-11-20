@@ -181,7 +181,7 @@ struct CommandPalette: View {
     private var everything: [Item] {
         let dash = model.dashboard
         let day = dash.day
-        var items: [Item] = TodayView.Section.allCases.map { s in
+        var items: [Item] = TodayView.Section.visible(isAdmin: model.admin.team != nil).map { s in
             Item(id: "section-\(s.rawValue)", symbol: s.symbol, title: s.rawValue, detail: "Go to \(s.rawValue)", tag: .sections) {
                 model.navigate = s
             }

@@ -23,6 +23,8 @@ public struct Services: Sendable {
     public let work: any ZenoWorkService
     /// The team: sponsor, Focus Report link, the Zen Gold claim.
     public let team: any TeamService
+    /// The team admin's view (adminDashboard, cohortReport).
+    public let admin: any AdminService
     /// True when the fakes are wired; every surface showing their data says "Demo data".
     public let isDemo: Bool
 
@@ -30,7 +32,7 @@ public struct Services: Sendable {
                 scores: any ScoreService, days: any DaySyncService,
                 voiceTokens: any VoiceTokenService, cards: any ZenCardService,
                 focus: (any FocusSyncService)? = nil, work: any ZenoWorkService = FakeZenoWork(),
-                team: any TeamService = FakeTeam(), isDemo: Bool) {
+                team: any TeamService = FakeTeam(), admin: any AdminService = FakeAdmin(), isDemo: Bool) {
         self.auth = auth
         self.nudges = ResilientNudges(nudges)
         self.cohorts = cohorts
@@ -41,6 +43,7 @@ public struct Services: Sendable {
         self.focus = focus
         self.work = work
         self.team = team
+        self.admin = admin
         self.isDemo = isDemo
     }
 
@@ -48,7 +51,7 @@ public struct Services: Sendable {
     public static func fakes() -> Services {
         Services(auth: FakeAuth(approvalDelay: .seconds(30)), nudges: FakeNudges(), cohorts: FakeCohorts(),
                  scores: FakeScores(), days: FakeSync.demo(), voiceTokens: FakeVoiceTokens(), cards: FakeZenCards(),
-                 focus: FakeFocusSync(), work: FakeZenoWork(), team: FakeTeam(), isDemo: true)
+                 focus: FakeFocusSync(), work: FakeZenoWork(), team: FakeTeam(), admin: FakeAdmin(), isDemo: true)
     }
 }
 
