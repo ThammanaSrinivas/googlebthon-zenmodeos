@@ -239,7 +239,8 @@ public struct ZenoToolbox: ZenoToolExecutor {
         let raw: String?
         switch value {
         case .string(let text): raw = text
-        case .number(let number): raw = number.rounded() == number ? String(Int64(number)) : String(number)
+        // Whole numbers as integers, while they fit one exactly (Int64 traps on 1e20 and beyond).
+        case .number(let number): raw = number.rounded() == number && abs(number) < 9.0e15 ? String(Int64(number)) : String(number)
         default: raw = nil
         }
         return ZenCardDraft.clip(raw, limit)
