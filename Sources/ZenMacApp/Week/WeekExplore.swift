@@ -109,7 +109,7 @@ final class WeekAskModel {
 
 // MARK: - The section
 
-/// Explore your week: Gemini's review on the left, set questions on the right.
+/// Zeno's read of the week, one card: Gemini's review on the left, set questions on the right.
 struct ExploreSection: View {
     let ask: WeekAskModel
 
@@ -118,18 +118,19 @@ struct ExploreSection: View {
             HStack(alignment: .firstTextBaseline, spacing: ZenSpace.s3) {
                 Text(WeekCopy.exploreTitle).zenType(.headline).foregroundStyle(Color.zen.textHeading)
                     .accessibilityAddTraits(.isHeader)
-                Text(WeekCopy.exploreLede).zenType(.body).foregroundStyle(Color.zen.textCaption)
                 Spacer()
                 DemoTag()
             }
-            HStack(alignment: .top, spacing: ZenSpace.s4) {
+            HStack(alignment: .top, spacing: ZenSpace.s6) {
                 ReviewCard()
-                    .frame(maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                Rectangle().fill(Color.zen.borderHairline).frame(width: 1)
                 AskCard(ask: ask)
-                    .frame(width: 440)
-                    .frame(maxHeight: .infinity, alignment: .top)
+                    .frame(width: 400, alignment: .topLeading)
             }
             .fixedSize(horizontal: false, vertical: true)
+            .padding(ZenSpace.s6)
+            .glassCard(radius: ZenRadius.xxxl)
         }
     }
 }
@@ -164,8 +165,6 @@ private struct AskCard: View {
             }
             answerArea
         }
-        .padding(ZenSpace.s5)
-        .glassCard(radius: ZenRadius.widget)
         .animation(ZenMotion.container, value: ask.loading)
         .animation(ZenMotion.container, value: ask.selected)
     }
@@ -202,7 +201,7 @@ private struct AskCard: View {
     }
 }
 
-/// Gemini's weekly review: one headline, a short read, one thing to try.
+/// Gemini's weekly review: one headline, a short read, one thing to try. Sits inside Explore's card.
 struct ReviewCard: View {
     @Environment(AppModel.self) private var model
 
@@ -250,9 +249,7 @@ struct ReviewCard: View {
                 .accessibilityLabel(WeekCopy.reviewLoading)
             }
         }
-        .padding(ZenSpace.s5)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(radius: ZenRadius.widget)
         .animation(ZenMotion.container, value: model.reviewLoading)
     }
 }

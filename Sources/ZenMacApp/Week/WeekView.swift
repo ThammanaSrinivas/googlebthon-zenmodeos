@@ -4,26 +4,27 @@ import ZenAPI
 
 /// Words on the Week section, named once.
 enum WeekCopy {
-    static let eyebrow = "The weekly streak"
     static let titleTop = "Four good days"
     static let titleBottom = "wins the week."
-    static let lede = "A good day is a Zen Score above 6.0. Win four, Monday to Sunday, and the week is yours."
-    static let weekStreak = "week streak"
-    static func best(_ best: Int, canMake: Int?) -> String {
-        canMake.map { "Best \(best) · this week can make it \($0)" } ?? "Best \(best) · this week is won"
+    static let stateFresh = "Fresh week"
+    static let stateBuilding = "Building"
+    static let stateClose = "Close"
+    static let stateLastChance = "Last chance"
+    static let stateWon = "Won"
+    static let stateEnded = "Ended short"
+    static let weeksInARow = "weeks in a row"
+    static func nextMilestone(_ left: Int, _ target: Int) -> String {
+        left == 1 ? "One more won week makes \(target)." : "\(left) more won weeks make \(target)."
     }
-    static let twelveWeeks = "12 weeks"
-    static let legendGood = "Good day"
-    static let legendUnder = "Under 6.0"
-    static let legendWon = "Won week"
+    static let pastAYear = "A year and counting."
+    static let wonIt = "Won it"
+    static let noData = "No data"
+    static let under6 = "Under 6.0"
     static let share = "Share streak"
     static let shareHint = "Shares a picture of your streak. Scores only, never minutes or apps."
     static let demoHistory = "Demo history"
-    static let screens = "Across your screens"
-    static let iPhoneLine = "Score only"
 
-    static let exploreTitle = "Explore your week"
-    static let exploreLede = "Gemini reads your scores, never your apps."
+    static let exploreTitle = "Zeno's read of your week"
     static let reviewEyebrow = "Weekly review"
     static let reviewSourceGemini = "GEMINI"
     static let reviewSourceHere = "WRITTEN HERE"
@@ -37,8 +38,6 @@ enum WeekCopy {
     static let askFromGemini = "Gemini · from your scores only"
     static let askFromHere = "Written here: Gemini didn't answer in time"
     static let askFallback = "I can't read the week right now. Your scores are safe; ask again in a moment."
-    static let fromGemini = "Written by Gemini from your scores alone"
-    static let fromHere = "Written here from your scores: Gemini didn't answer in time"
 
     static let recapsTitle = "Past recaps"
     static let recapsLede = "Your week in Zen, every Monday."
@@ -46,22 +45,46 @@ enum WeekCopy {
     static let viewAllHint = "Opens every week on record"
     static let noRecaps = "Your first recap arrives on Monday."
     static let noScores = "No scores that week."
+    static let noMatches = "No weeks to show here yet."
     static let recapsPageTitle = "Recaps"
-    static let recapsPageLede = "Every week on record, newest first. Pick one to read it."
+    static let recapsPageLede = "Every week on record. Pick one to play its story."
     static let backToWeek = "Week"
     static let backHint = "Back to Week"
     static let coverTitle = "Your week in Zen"
-    static let latest = "Latest"
     static let won = "Won"
     static let avg = "AVG"
     static let average = "Average"
     static let tryNext = "Try next week"
     static let shareWeek = "Share this week"
     static let toastAction = "Read it"
+
+    static let statGood = "Good days"
+    static let statPullBacks = "Pull-backs"
+    static let statMac = "This Mac"
+    static let screens = "Across your screens"
+    static let lowerOfTwo = "Each day's score is the lower of the two"
+    static let thisMac = "This Mac"
+    static let mac = "Mac"
+    static let iPhone = "iPhone"
+    static let iPhoneScoreOnly = "The iPhone shares its score only. Its minutes stay on the phone."
+    static let twoScreens = "Two screens, one score."
+    static let patternLine = "Drawn in the pattern you chose in Zen Circle. Every seed is an hour."
+    static let highlight = "The highlight"
+    static let inTheWay = "What got in the way"
+    static let highlightLine = "The fourth good day landed here, and the week was yours."
+    static let inTheWayLine = "Most of the dip landed after 9 pm on this Mac. One evening, not the whole week."
+    static let nextWeekKicker = "Next week"
+    static let goldOpens = "Zen Gold is open all next week."
+    static let winNext = "Let's win the next one."
+    static let streakSoFar = "The streak so far"
+    static let weeksWon = "weeks won"
+    static let bestStreak = "best streak"
+    static let goodDayRate = "good days"
+    static let milestones = "Milestones"
 }
 
-/// Week: the hero (this week and the streak), Explore (Gemini's review and set questions), and the
-/// recaps of past weeks, with every week on record a page away.
+/// Week: this week and the streak, Zeno's read of it, and the recaps of past weeks, with every
+/// week on record (and its story) a page away.
 struct WeekView: View {
     enum Page: Equatable { case week, recaps }
 
@@ -82,16 +105,20 @@ struct WeekView: View {
                 }
                 .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
             case .recaps:
-                RecapsPage(entries: entries, selected: $selectedRecap) { page = .week }
+                RecapsPage(entries: entries, streak: model.streak, selected: $selectedRecap) { page = .week }
                     .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
             }
         }
         .animation(ZenMotion.container, value: page)
         #if DEBUG
-        // Debug renders: ZEN_WEEK_PAGE=recaps opens the Recaps page; ZEN_WEEK_ASK=0…3 asks a question.
+        // Debug renders: ZEN_WEEK_PAGE=recaps opens Recaps (ZEN_WEEK_RECAP=n picks the nth newest);
+        // ZEN_WEEK_ASK=0…3 asks a question.
         .onAppear {
             let env = ProcessInfo.processInfo.environment
-            if env["ZEN_WEEK_PAGE"] == "recaps" { page = .recaps }
+            if env["ZEN_WEEK_PAGE"] == "recaps" {
+                page = .recaps
+                if let n = env["ZEN_WEEK_RECAP"].flatMap(Int.init), entries.indices.contains(n) { selectedRecap = entries[n].id }
+            }
             if let i = env["ZEN_WEEK_ASK"].flatMap(Int.init), WeekPrompt.all.indices.contains(i) {
                 ask.ask(WeekPrompt.all[i], recap: WeekDemo.recap, reduceMotion: true)
             }
@@ -100,7 +127,7 @@ struct WeekView: View {
     }
 }
 
-/// The Week page itself, top to bottom.
+/// The Week page itself: three bands, each with one job.
 private struct WeekPage: View {
     @Environment(AppModel.self) private var model
     let ask: WeekAskModel
@@ -110,58 +137,31 @@ private struct WeekPage: View {
     var body: some View {
         let snapshot = model.snapshot ?? FakeSnapshot.value
         ScrollViewReader { proxy in
-        ScrollView {
-            VStack(alignment: .leading, spacing: ZenSpace.s8) {
-                VStack(alignment: .leading, spacing: ZenSpace.s3) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: ZenSpace.s10) {
                     if let streak = model.streak {
                         WeekHero(week: snapshot.week, streak: streak)
                     }
-                    ScreensStrip(devices: snapshot.devices)
+                    ExploreSection(ask: ask)
+                    PastRecapsFooter(entries: entries, open: openRecaps)
+                        .id(Self.footerID)
                 }
-                ExploreSection(ask: ask)
-                PastRecapsFooter(entries: entries, open: openRecaps)
-                    .id(Self.footerID)
+                .padding(ZenSpace.s6)
+                .padding(.bottom, ZenSpace.s6)
             }
-            .padding(ZenSpace.s6)
-        }
-        .scrollIndicators(.hidden)
-        #if DEBUG
-        // Debug renders: ZEN_WEEK_SCROLL=recaps lands on the footer.
-        .onAppear {
-            if ProcessInfo.processInfo.environment["ZEN_WEEK_SCROLL"] == "recaps" {
-                Task { try? await Task.sleep(for: .milliseconds(400)); proxy.scrollTo(Self.footerID, anchor: .bottom) }
+            .scrollIndicators(.hidden)
+            #if DEBUG
+            // Debug renders: ZEN_WEEK_SCROLL=recaps lands on the footer.
+            .onAppear {
+                if ProcessInfo.processInfo.environment["ZEN_WEEK_SCROLL"] == "recaps" {
+                    Task { try? await Task.sleep(for: .milliseconds(400)); proxy.scrollTo(Self.footerID, anchor: .bottom) }
+                }
             }
-        }
-        #endif
+            #endif
         }
     }
 
     private static let footerID = "past-recaps"
-}
-
-/// Each screen's part this week, on one quiet line.
-private struct ScreensStrip: View {
-    let devices: [DeviceLine]
-
-    var body: some View {
-        HStack(spacing: ZenSpace.s5) {
-            Eyebrow(WeekCopy.screens)
-            ForEach(devices) { d in
-                HStack(spacing: ZenSpace.s2) {
-                    Image(systemName: d.kind == .iPhone ? "iphone" : "laptopcomputer")
-                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Color.zen.textHeading)
-                    Text(d.name).font(ZenFont.text(13, .semibold)).foregroundStyle(Color.zen.textHeading)
-                    Text(d.detail).zenType(.caption).foregroundStyle(Color.zen.textCaption)
-                }
-                .accessibilityElement(children: .combine)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, ZenSpace.s5)
-        .frame(height: 44)
-        .background(Capsule().fill(Color.zen.surfaceCard.opacity(0.55)))
-        .overlay(Capsule().strokeBorder(Color.zen.borderHairline, lineWidth: 1))
-    }
 }
 
 /// One day: the score in Departure on a tile. Good days on the green tint, the winning day ringed
