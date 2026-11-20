@@ -22,9 +22,13 @@ private struct Box {
 }
 
 /// A score service that never answers in time.
+/// Hangs for a minute and ignores cancellation: a callback bridged into async, like Firestore's
+/// getDocument() on a bad network.
 private struct HangingScores: ScoreService {
     func today() async throws -> ScoreSnapshot {
-        try await Task.sleep(for: .seconds(60))
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global().asyncAfter(deadline: .now() + 60) { done.resume() }
+        }
         throw CancellationError()
     }
     func updates() -> AsyncStream<ScoreSnapshot> { AsyncStream { $0.finish() } }
@@ -214,7 +218,9 @@ struct ZenoToolboxMalformedArgsTests {
         await box.ledger.recordPickup()
         let started = ContinuousClock.now
         let outcome = await box.call("get_zen_status", ["unexpected": [1, 2, 3]])
-        #expect(ContinuousClock.now - started < .seconds(5))
+        // The read hangs for 60 s and ignores cancellation; the 30 ms timeout must still answer.
+        // 30 s leaves a busy CI runner plenty of room while still failing on a real hang.
+        #expect(ContinuousClock.now - started < .seconds(30))
         #expect(outcome.ok)
         #expect(outcome.result["score_available"] == false)
         #expect(outcome.result["score"] == nil)

@@ -106,15 +106,22 @@ public struct ZenoToolbox: ZenoToolExecutor {
         return ToolOutcome(result: .object(result), card: .status(status))
     }
 
+    /// Today's score, or nil once `scoreTimeout` passes. Not a task group: a group waits for every
+    /// child before it returns, and Firestore's `getDocument()` ignores cancellation, so on a slow
+    /// network the timeout would not hold and Zeno would go quiet mid-conversation. The slow read is
+    /// cancelled and left to finish on its own.
     private func readScore() async -> ScoreSnapshot? {
         let scores = self.scores
         let timeout = scoreTimeout
-        return await withTaskGroup(of: ScoreSnapshot?.self) { group in
-            group.addTask { try? await scores.today() }
-            group.addTask { try? await Task.sleep(for: timeout); return nil }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
+        let first = FirstAnswer<ScoreSnapshot?>()
+        return await withCheckedContinuation { continuation in
+            first.start(continuation)
+            let read = Task { first.answer(try? await scores.today()) }
+            Task {
+                try? await Task.sleep(for: timeout)
+                first.answer(nil)
+                read.cancel()
+            }
         }
     }
 
@@ -266,5 +273,24 @@ public struct ZenoToolbox: ZenoToolExecutor {
         ["id": .string(card.id), "summary": .string(card.summary), "mood": .string(card.mood.rawValue),
          "language": .string(card.language), "earned_back": .text(card.earnedBack), "drift": .text(card.drift),
          "shared": .bool(card.isShared)]
+    }
+}
+
+/// Resumes a continuation with the first answer; later answers are dropped. `start` runs before
+/// either racer exists, so an answer always finds the continuation (or that it's already used).
+private final class FirstAnswer<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Value, Never>?
+
+    func start(_ continuation: CheckedContinuation<Value, Never>) {
+        lock.withLock { self.continuation = continuation }
+    }
+
+    func answer(_ value: Value) {
+        let waiting = lock.withLock { () -> CheckedContinuation<Value, Never>? in
+            defer { continuation = nil }
+            return continuation
+        }
+        waiting?.resume(returning: value)
     }
 }
