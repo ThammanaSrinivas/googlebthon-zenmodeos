@@ -15,10 +15,10 @@ enum ZenCardLabels {
         return Locale(identifier: "en").localizedString(forLanguageCode: base) ?? t
     }
 
-    static func mood(_ mood: ZenCard.Mood) -> String { mood.rawValue.capitalized }
+    static func mood(_ mood: ZenAPI.ZenCard.Mood) -> String { mood.rawValue.capitalized }
 
     /// Zeno's face for the card's mood.
-    static func feeling(_ mood: ZenCard.Mood) -> ZenoFeeling {
+    static func feeling(_ mood: ZenAPI.ZenCard.Mood) -> ZenoFeeling {
         switch mood {
         case .happy: .happy
         case .pleasant: .pleasant
@@ -40,14 +40,14 @@ enum ZenCardLabels {
     }
 
     /// Samples for the demo build, labelled as samples wherever they show.
-    static func samples(now: Date = Date()) -> [ZenCard] {
+    static func samples(now: Date = Date()) -> [ZenAPI.ZenCard] {
         let day: TimeInterval = 86_400
         return [
-            ZenCard(id: "sample-1", summary: "இன்று மதியம் நீண்ட நடை போனேன், போனைத் தொடவே இல்லை.", mood: .pleasant, language: "ta",
+            ZenAPI.ZenCard(id: "sample-1", summary: "இன்று மதியம் நீண்ட நடை போனேன், போனைத் தொடவே இல்லை.", mood: .pleasant, language: "ta",
                     earnedBack: "A long walk", createdAt: now.addingTimeInterval(-day * 0.2), sharedAt: now.addingTimeInterval(-day * 0.1)),
-            ZenCard(id: "sample-2", summary: "Aaj subah focus solid tha. Shaam ko reels mein thoda kho gaya, par jaldi nikal aaya.",
+            ZenAPI.ZenCard(id: "sample-2", summary: "Aaj subah focus solid tha. Shaam ko reels mein thoda kho gaya, par jaldi nikal aaya.",
                     mood: .happy, language: "hi-Latn", earnedBack: "Morning focus", drift: "Reels after 9", createdAt: now.addingTimeInterval(-day * 1.2)),
-            ZenCard(id: "sample-3", summary: "Finished the deck before lunch, then called Amma instead of scrolling.", mood: .neutral,
+            ZenAPI.ZenCard(id: "sample-3", summary: "Finished the deck before lunch, then called Amma instead of scrolling.", mood: .neutral,
                     language: "en-IN", earnedBack: "A call home", createdAt: now.addingTimeInterval(-day * 2.2)),
         ]
     }
@@ -61,7 +61,7 @@ enum ZenCardLabels {
 struct ZenCardStackCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var cards: [ZenCard]?
+    @State private var cards: [ZenAPI.ZenCard]?
     @State private var front = 0
     @State private var hovering = false
 
@@ -115,7 +115,7 @@ struct ZenCardStackCard: View {
         }
     }
 
-    private func stack(_ showing: [ZenCard]) -> some View {
+    private func stack(_ showing: [ZenAPI.ZenCard]) -> some View {
         let order = ZenCardLabels.order(count: showing.count, front: front % max(showing.count, 1))
         let top = showing[order[0]]
         return Button { step(showing.count) } label: {
@@ -147,7 +147,7 @@ struct ZenCardStackCard: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    private func footer(_ showing: [ZenCard]) -> some View {
+    private func footer(_ showing: [ZenAPI.ZenCard]) -> some View {
         let order = ZenCardLabels.order(count: showing.count, front: front % max(showing.count, 1))
         return HStack(spacing: ZenSpace.s2) {
             HStack(spacing: 5) {
@@ -206,7 +206,7 @@ private struct StackPress: ButtonStyle {
 /// One Zen Card, as paper: Zeno's face for the mood, the language, the note in the person's own
 /// words, and what they earned back. Never a score, never a name.
 struct ZenCardFace: View {
-    let card: ZenCard
+    let card: ZenAPI.ZenCard
     let isTop: Bool
     @Environment(\.colorScheme) private var scheme
 

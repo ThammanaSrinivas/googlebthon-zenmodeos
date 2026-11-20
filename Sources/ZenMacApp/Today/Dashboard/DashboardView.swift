@@ -76,11 +76,11 @@ struct DashboardView: View {
                     .padding(.bottom, ZenSpace.s16)
                     .frame(maxWidth: Self.column)
                     .frame(maxWidth: .infinity)
-                    // The quiet bloom in the top-right corner of the page.
+                    // Albeit's quiet bloom in the page's top-right corner; still, so nothing on Today moves on its own.
                     .background(alignment: .topTrailing) {
-                        TodayOrnament()
-                            .frame(width: 560, height: 560)
-                            .offset(x: 150, y: -250)
+                        ZenBloomOrnament(.bloom, intensity: 1.1, drifts: false)
+                            .frame(width: 500, height: 500)
+                            .offset(x: 150, y: -220)
                     }
                 }
                 .scrollIndicators(.hidden)
