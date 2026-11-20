@@ -21,6 +21,7 @@ let package = Package(
         .library(name: "ZenMock", targets: ["ZenMock"]),
         .library(name: "MacUsage", targets: ["MacUsage"]),
         .library(name: "ZenVoice", targets: ["ZenVoice"]),
+        .library(name: "ZenFocus", targets: ["ZenFocus"]),
     ],
     targets: [
         // The one app contract: protocols, value types and the rules every surface shares (the
@@ -39,6 +40,10 @@ let package = Package(
         // to. The URLSession transport and the AVAudioEngine adapter sit behind `canImport`.
         .target(name: "ZenVoice", dependencies: ["ZenAPI", "ZenLogic"],
                 resources: [.copy("Resources/zeno_voice_tools_v1.json")], swiftSettings: swift6),
+        // ZenMode OS for Teams: Focus Mode's hook runner and its hooks (Slack, the signed webhook,
+        // Do Not Disturb through Shortcuts), the focus engine, work hours and the weekly streak.
+        // Request builders are pure; the network and `Process` sit behind protocols.
+        .target(name: "ZenFocus", dependencies: ["ZenAPI"], swiftSettings: swift6),
 
         .testTarget(name: "ZenAPITests", dependencies: ["ZenAPI", "ZenMock"], swiftSettings: swift6),
         .testTarget(name: "ZenLogicTests", dependencies: ["ZenLogic", "ZenAPI"],
@@ -46,6 +51,7 @@ let package = Package(
         .testTarget(name: "ZenMockTests", dependencies: ["ZenMock", "ZenLogic", "ZenAPI"], swiftSettings: swift6),
         .testTarget(name: "ZenVoiceTests", dependencies: ["ZenVoice", "ZenMock", "ZenLogic", "ZenAPI"],
                     swiftSettings: swift6),
+        .testTarget(name: "ZenFocusTests", dependencies: ["ZenFocus", "ZenAPI"], swiftSettings: swift6),
         .testTarget(name: "MacUsageTests", dependencies: ["MacUsage", "ZenMock", "ZenLogic", "ZenAPI"],
                     swiftSettings: swift6),
     ]

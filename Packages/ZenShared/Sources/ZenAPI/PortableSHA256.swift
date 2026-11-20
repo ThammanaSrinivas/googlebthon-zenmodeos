@@ -1,5 +1,6 @@
 // SHA-256 (FIPS 180-4) in pure Swift: one copy for every platform that has no CryptoKit (Linux CI),
-// used by SignInNonce there and by the Zen Score grid digests in the tests.
+// used by SignInNonce there, by the Zen Score grid digests in the tests, and (as HMAC) to sign
+// Focus Mode's webhooks.
 public struct PortableSHA256: Sendable {
     public init() {}
 
@@ -38,13 +39,44 @@ public struct PortableSHA256: Sendable {
 
     /// The digest in lowercase hex. The hash is spent afterwards.
     public mutating func hexDigest() -> String {
+        digest().map { byte in
+            let hex = String(byte, radix: 16)
+            return byte < 16 ? "0" + hex : hex
+        }.joined()
+    }
+
+    /// The 32-byte digest. The hash is spent afterwards.
+    public mutating func digest() -> [UInt8] {
         let bits = length &* 8
         update([0x80])
         while filled != 56 { update([0]) }
         update((0..<8).reversed().map { UInt8(truncatingIfNeeded: bits >> ($0 * 8)) })
-        return state.map { word in
-            let hex = String(word, radix: 16)
-            return String(repeating: "0", count: 8 - hex.count) + hex
+        return state.flatMap { word in (0..<4).reversed().map { UInt8(truncatingIfNeeded: word >> ($0 * 8)) } }
+    }
+
+    /// HMAC-SHA256 (RFC 2104) of `message` with `key`.
+    public static func hmac(key: [UInt8], message: [UInt8]) -> [UInt8] {
+        var k = key
+        if k.count > 64 {
+            var h = PortableSHA256()
+            h.update(k)
+            k = h.digest()
+        }
+        k += [UInt8](repeating: 0, count: 64 - k.count)
+        var inner = PortableSHA256()
+        inner.update(k.map { $0 ^ 0x36 })
+        inner.update(message)
+        var outer = PortableSHA256()
+        outer.update(k.map { $0 ^ 0x5c })
+        outer.update(inner.digest())
+        return outer.digest()
+    }
+
+    /// Lower-case hex HMAC-SHA256.
+    public static func hmacHex(key: [UInt8], message: [UInt8]) -> String {
+        hmac(key: key, message: message).map { byte in
+            let hex = String(byte, radix: 16)
+            return byte < 16 ? "0" + hex : hex
         }.joined()
     }
 
