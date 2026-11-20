@@ -16,6 +16,18 @@ enum WakeWord {
             .filter { !$0.isEmpty }
         return words.contains { names.contains($0) }
     }
+
+    enum Reaction: Equatable { case ignore, wake, restart }
+
+    /// What a recognition callback means. Only the live session counts: a session cancelled for a
+    /// restart reports back after its successor has started, and treating that as "ended" restarted
+    /// the new one, whose cancellation reported back too, a loop that never listened for more than a
+    /// second.
+    static func reaction(to transcript: String, done: Bool, live: Bool, listening: Bool) -> Reaction {
+        guard live, listening else { return .ignore }
+        if heard(transcript) { return .wake }
+        return done ? .restart : .ignore
+    }
 }
 
 /// ⌃⌥Z from any app: talk to Zeno in the notch. A Carbon hot key, so it needs no permission and
@@ -54,6 +66,8 @@ final class WakeWordListener {
     @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
     @ObservationIgnored private var restart: Task<Void, Never>?
+    /// Counts recognition sessions, so a cancelled one's late callback is told apart from the live one's.
+    @ObservationIgnored private var session = 0
     @ObservationIgnored private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-IN")) ?? SFSpeechRecognizer()
 
     func start() async {
@@ -91,8 +105,10 @@ final class WakeWordListener {
         engine.prepare()
         do { try engine.start() } catch { input.removeTap(onBus: 0); state = .unavailable; return }
         state = .listening
+        session += 1
+        let current = session
         task = recognizer.recognitionTask(with: request, resultHandler: Self.onResult { [weak self] text, done in
-            Task { @MainActor in self?.heard(text, done: done) }
+            Task { @MainActor in self?.heard(text, done: done, session: current) }
         })
         // Recognition tasks end after about a minute: start a fresh one before that.
         restart = Task { [weak self] in
@@ -102,14 +118,17 @@ final class WakeWordListener {
         }
     }
 
-    /// A transcript arrived (on the main actor): wake on Zeno's name, or start over when the task ended.
-    private func heard(_ text: String, done: Bool) {
-        guard state == .listening else { return }
-        if WakeWord.heard(text) {
+    /// A transcript arrived (on the main actor): wake on Zeno's name, or start over when the live
+    /// session ended. Callbacks from an earlier, cancelled session are ignored.
+    private func heard(_ text: String, done: Bool, session from: Int) {
+        switch WakeWord.reaction(to: text, done: done, live: from == session, listening: state == .listening) {
+        case .wake:
             stop()
             onWake?()
-        } else if done, let recognizer {
-            scheduleRestart(recognizer)
+        case .restart:
+            if let recognizer { scheduleRestart(recognizer) }
+        case .ignore:
+            break
         }
     }
 
