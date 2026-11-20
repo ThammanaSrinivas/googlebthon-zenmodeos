@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift:
+    name: ZenShared tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.4.1-noble
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # Packages/ZenShared only: the root package is the SwiftUI Mac app (macOS builds it).
+      - name: Build and test Packages/ZenShared
+        run: scripts/test-linux.sh
+
+  guardrails:
+    name: Guardrails
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Every rule must still catch its own `bad` examples and allow its `good` ones.
+      - name: Self-test guardrails
+        run: .guardrails/gr test
+      # Every tracked file, including the no-private-code rules for this public repo.
+      - name: Check every tracked file
+        run: .guardrails/gr check --all

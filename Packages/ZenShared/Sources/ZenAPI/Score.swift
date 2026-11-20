@@ -101,4 +101,7 @@ public struct ScoreSnapshot: Equatable, Sendable {
 
 public protocol ScoreService: Sendable {
     func today() async throws -> ScoreSnapshot
+    /// The snapshot now, then every change: within seconds on the real backend (a listener),
+    /// every 30 s by default (`pollingUpdates`, Sync.swift).
+    func updates() -> AsyncStream<ScoreSnapshot>
 }

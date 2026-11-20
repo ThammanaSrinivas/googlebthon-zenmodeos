@@ -1,0 +1,75 @@
+# node - JavaScript / TypeScript, React / Vue / Svelte front ends and Node back ends.
+# Use together with base. Vendored by install.py; customise from guardrails.toml.
+
+[[rule]]
+id = "web-hardcoded-color"
+kind = "content"
+paths = ["*.tsx", "*.jsx", "*.vue", "*.svelte"]
+exclude = ["**/theme/**", "**/themes/**", "**/tokens/**", "**/styles/**", "*.stories.*", "*.test.*", "*.spec.*"]
+regex = '''["'`]#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?([0-9A-Fa-f]{2})?["'`]|\brgba?\(\s*\d'''
+why = "Colours defined inline drift from the design system: dark mode, contrast fixes and a rebrand each turn into a hunt through every component."
+fix = "Use a design token (CSS variable, Tailwind theme colour, or the theme object). If no token fits, add one to the theme once and reference it."
+ref = "Token/theme files usually live under src/theme, src/styles or tailwind.config.*"
+bad = ["color: '#ff0000'", "style={{ background: \"#123456\" }}", "fill: `#fff`", "border: 'rgba(0, 0, 0, 0.1)'"]
+good = ["color: theme.colors.primary", "className=\"text-primary\"", "color: 'var(--accent)'"]
+
+[[rule]]
+id = "js-focused-test"
+kind = "content"
+paths = ["*.test.*", "*.spec.*", "**/__tests__/**", "**/e2e/**"]
+regex = '\b(describe|it|test|context)\.only\s*\(|\bf(it|describe)\s*\('
+why = "A focused test (.only / fit) silently skips every other test in the run, so CI goes green without testing anything else."
+fix = "Remove .only / the f prefix before finishing. To run one test locally, use the runner's filter (e.g. `vitest -t name`, `jest -t name`)."
+bad = ["it.only('works', () => {})", "describe.only(\"x\", () => {})", "fit('a', () => {})"]
+good = ["it('only runs on CI', () => {})", "test.each(cases)('x', fn)"]
+
+[[rule]]
+id = "js-skipped-test"
+kind = "content"
+paths = ["*.test.*", "*.spec.*", "**/__tests__/**", "**/e2e/**"]
+regex = '\b(describe|it|test|context)\.skip\s*\(|\bx(it|describe|test)\s*\('
+why = "Skipping a failing test hides the bug it found; the suite goes green while the behaviour stays broken."
+fix = "Fix the code - or the test, if the test is what's wrong. If it must be skipped, ask the user and leave a reason with a ticket link next to it."
+bad = ["it.skip('flaky', () => {})", "xit('a', () => {})", "describe.skip('x', fn)"]
+good = ["it('skips weekends', () => {})"]
+
+[[rule]]
+id = "js-eval"
+kind = "content"
+paths = ["*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs", "*.vue", "*.svelte"]
+exclude = ["*.test.*", "*.spec.*", "**/__tests__/**"]
+regex = '(?<![\w.$])eval\s*\(|\bnew\s+Function\s*\('
+why = "eval / new Function execute strings as code - one unescaped input away from remote code execution, and they defeat CSP."
+fix = "Parse data with JSON.parse, dispatch with a lookup table of functions, or use a real parser. There is almost always a non-eval design."
+bad = ["const r = eval(input)", "const f = new Function('a', body)"]
+good = ["const r = JSON.parse(input)", "model.evaluate(x)", "retrieval(x)"]
+
+[[rule]]
+id = "js-tls-disabled"
+kind = "content"
+paths = ["*.js", "*.ts", "*.mjs", "*.cjs", "*.json", "*.yml", "*.yaml", ".env.example"]
+regex = '''NODE_TLS_REJECT_UNAUTHORIZED\s*[=:]\s*["']?0|rejectUnauthorized\s*:\s*false'''
+why = "Turning off TLS verification makes every HTTPS call trivially interceptable, and it never gets turned back on."
+fix = "Fix the certificate problem instead: pass the right CA (`ca:` option or NODE_EXTRA_CA_CERTS) or use the service's proper hostname."
+bad = ["process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'", "https.Agent({ rejectUnauthorized: false })"]
+good = ["https.Agent({ ca: fs.readFileSync(caPath) })"]
+
+[[rule]]
+id = "js-debugger"
+kind = "content"
+paths = ["*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.vue", "*.svelte"]
+regex = '^\s*debugger\s*;?\s*$'
+why = "A leftover debugger statement freezes the app for anyone with dev tools open and is noise in production code."
+fix = "Remove the debugger statement; use a breakpoint in the editor or browser instead."
+bad = ["debugger;", "    debugger"]
+good = ["const debuggerEnabled = false;"]
+
+[[rule]]
+id = "react-dangerous-html"
+kind = "content"
+paths = ["*.tsx", "*.jsx"]
+regex = 'dangerouslySetInnerHTML'
+why = "Rendering raw HTML is the main XSS hole in React apps: anything user-influenced in that string runs as script."
+fix = "Render text/JSX instead. If HTML is unavoidable, sanitize it first (DOMPurify.sanitize) right where it's rendered, and ask the user to confirm the source is trusted."
+bad = ["<div dangerouslySetInnerHTML={{ __html: body }} />"]
+good = ["<div>{body}</div>"]

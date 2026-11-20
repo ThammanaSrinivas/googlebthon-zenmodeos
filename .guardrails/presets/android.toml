@@ -1,0 +1,117 @@
+# android - Kotlin / Jetpack Compose / Android XML. Use together with base.
+# Vendored by install.py; customise from .guardrails/guardrails.toml, not here.
+
+[settings]
+exclude = ["**/generated/**", "**/src/test/snapshots/**"]
+secret_files = ["local.properties", "keystore.properties", "signing.properties"]
+
+[[rule]]
+id = "android-hardcoded-color"
+kind = "content"
+paths = ["**/src/main/**/*.kt"]
+exclude = ["**/ui/theme/**", "**/theme/**", "**/designsystem/**"]
+regex = 'Color\(0[xX][0-9A-Fa-f]{6,8}\)|Color\.parseColor\(|"#[0-9A-Fa-f]{6,8}"'
+why = "Colours defined inline drift from the design system: dark mode, contrast fixes and a rebrand each turn into a hunt through every screen."
+fix = "Use a theme token (MaterialTheme.colorScheme.* or your app's theme object in ui/theme/). If no token fits, add one to the theme file once and reference it - don't add a raw literal at the call site."
+ref = "Theme/token files live under **/ui/theme/ - grep for the existing tokens before adding one."
+bad = ["val bg = Color(0xFF00C700)", "Color.parseColor(\"#112233\")", "tint = \"#FFFFFF\""]
+good = ["val bg = MaterialTheme.colorScheme.primary", "Color.Transparent", "// brand green #00C700 lives in Color.kt"]
+
+[[rule]]
+id = "android-hardcoded-color-xml"
+kind = "content"
+paths = ["**/res/layout*/*.xml", "**/res/menu/*.xml"]
+regex = '="#[0-9A-Fa-f]{3,8}"'
+why = "Hex colours inline in layouts bypass the colour resources, so night mode and theme changes miss them."
+fix = "Reference a colour resource (@color/...) or a theme attribute (?attr/colorPrimary). Add the colour to res/values/colors.xml once if it's new."
+bad = ["android:textColor=\"#FF0000\"", "app:tint=\"#80000000\""]
+good = ["android:textColor=\"@color/text_primary\"", "android:background=\"?attr/colorSurface\""]
+
+[[rule]]
+id = "android-cleartext-traffic"
+kind = "content"
+paths = ["**/AndroidManifest.xml", "**/res/xml/*.xml"]
+regex = 'usesCleartextTraffic="true"|cleartextTrafficPermitted="true"'
+why = "Cleartext HTTP lets anyone on the network read or rewrite the app's traffic, including tokens."
+fix = "Use HTTPS. For a local dev server only, allow cleartext for that one host in a debug-only network_security_config, never app-wide."
+bad = ["android:usesCleartextTraffic=\"true\"", "<base-config cleartextTrafficPermitted=\"true\">"]
+good = ["android:usesCleartextTraffic=\"false\""]
+
+[[rule]]
+id = "android-debuggable"
+kind = "content"
+paths = ["**/AndroidManifest.xml"]
+regex = 'android:debuggable="true"'
+why = "A debuggable release build lets anyone attach a debugger and read the app's memory and data."
+fix = "Remove android:debuggable from the manifest; the build type sets it (true for debug, false for release) automatically."
+bad = ["android:debuggable=\"true\""]
+good = ["android:allowBackup=\"false\""]
+
+[[rule]]
+id = "android-webview-file-access"
+kind = "content"
+paths = ["*.kt", "*.java"]
+regex = '(setAllowFileAccess|setAllowFileAccessFromFileURLs|setAllowUniversalAccessFromFileURLs)\(\s*true\s*\)|allow(FileAccess|FileAccessFromFileURLs|UniversalAccessFromFileURLs)\s*=\s*true'
+why = "WebView file access lets injected or remote JavaScript read the app's private files."
+fix = "Leave file access off. Load bundled content through WebViewAssetLoader (https://appassets.androidplatform.net/...) instead."
+bad = ["settings.allowFileAccess = true", "webView.settings.setAllowUniversalAccessFromFileURLs(true)"]
+good = ["settings.allowFileAccess = false", "settings.javaScriptEnabled = true"]
+
+[[rule]]
+id = "android-skipped-test"
+kind = "content"
+paths = ["**/src/test/**/*.kt", "**/src/androidTest/**/*.kt", "**/src/test/**/*.java", "**/src/androidTest/**/*.java"]
+regex = '^\s*@(Ignore|Disabled)\b'
+why = "Skipping a failing test hides the bug it found; the suite goes green while the behaviour stays broken."
+fix = "Fix the code - or the test, if the test is what's wrong. If it really must be skipped, ask the user and record the reason and a ticket in the annotation."
+bad = ["@Ignore", "    @Disabled(\"flaky\")"]
+good = ["@Test", "// @Ignore was removed"]
+
+[[rule]]
+id = "android-secret-files"
+kind = "forbidden_file"
+paths = ["local.properties", "keystore.properties", "signing.properties", "*.keystore", "*.jks", "google-services.json.bak"]
+why = "These hold machine paths, signing passwords and keystores; committed once, they live in history forever."
+fix = "Unstage it (`git rm --cached <file>`), add it to .gitignore, and read values at build time (local.properties / env vars / CI secrets)."
+bad = ["local.properties", "app/keystore.properties", "app/release.jks"]
+good = ["gradle.properties", "app/proguard-rules.pro"]
+
+[[rule]]
+id = "android-no-reading-signing"
+kind = "read_protect"
+paths = ["local.properties", "keystore.properties", "signing.properties"]
+why = "These files carry signing passwords and API keys; reading them copies the values into this transcript."
+fix = "Don't open them. To learn which keys a build expects, read app/build.gradle(.kts) where they're loaded; if you need a value, ask the user."
+bad = ["local.properties", "app/keystore.properties"]
+good = ["gradle.properties", "settings.gradle.kts"]
+
+[[rule]]
+id = "kotlin-duplicate-text"
+kind = "duplicate_literal"
+paths = ["**/src/main/**/*.kt", "**/src/main/**/*.java"]
+bad = ['Toast.makeText(ctx, "Code copied to clipboard", SHORT); log("Code copied to clipboard"); show("Code copied to clipboard")']
+good = [
+  'const val COPIED = "Code copied to clipboard"; toast(COPIED); log(COPIED); show(COPIED)',
+  '@Suppress("UnusedPrivateMember") @Suppress("UnusedPrivateMember") @Suppress("UnusedPrivateMember")',
+  '// "Code copied to clipboard" "Code copied to clipboard" "Code copied to clipboard"',
+]
+
+[[rule]]
+id = "android-wall-clock-in-ui"
+kind = "content"
+paths = ["**/src/main/**/ui/**/*.kt"]
+regex = '^(?!\s*(//|\*|/\*)).*\b((LocalDate|LocalDateTime|LocalTime|ZonedDateTime|OffsetDateTime|Instant|YearMonth)\.now\(\s*\)|System\.currentTimeMillis\(\)|Calendar\.getInstance\(\s*\))'
+why = "UI that reads the wall clock draws a different screen every day: screenshot goldens recorded this month fail next month, and edge dates (week start, month end, leap day) can't be previewed or tested."
+fix = "Take the date as a parameter (from the ViewModel), or read it from a clock CompositionLocal that tests and previews pin: LocalDate.now(LocalAppClock.current). Keep the one real clock read at the edge, not inside composables."
+bad = ["val today = LocalDate.now()", "val left = until - System.currentTimeMillis()", "val cal = Calendar.getInstance()"]
+good = ["val today = LocalDate.now(LocalAppClock.current)", "fun Header(today: LocalDate) {", "// never call LocalDate.now() in a composable"]
+
+[[rule]]
+id = "android-date-format-locale"
+kind = "content"
+paths = ["**/src/main/**/*.kt", "**/src/main/**/*.java"]
+regex = '\bDateTimeFormatter\.ofPattern\(\s*"[^"]*"\s*\)|\bSimpleDateFormat\(\s*"[^"]*"\s*\)'
+why = "With no Locale, month and day names (even digits) follow the phone's - or the build machine's - locale: \"Sep\" turns into \"Sept\" on en-IN, a date key written on one device doesn't parse on another, and screenshot tests pass on one machine and fail on the next."
+fix = "Pass the Locale on purpose: Locale.getDefault() for text the user reads, Locale.US or Locale.ROOT for machine formats (storage keys, file names, analytics, API payloads)."
+bad = ['DateTimeFormatter.ofPattern("d MMM")', 'SimpleDateFormat("yyyy-MM-dd")']
+good = ['DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())', 'SimpleDateFormat("yyyy-MM-dd", Locale.US)', "DateTimeFormatter.ISO_LOCAL_DATE"]

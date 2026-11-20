@@ -1,0 +1,30 @@
+# public-repo - for open-source repos that sit next to private ones.
+#
+# Convention: every private document or file starts with an all-caps "confidential"
+# marker line (an HTML comment in Markdown, a line comment in code). This preset makes
+# that marker radioactive here: it can't be written into this repo, committed or
+# merged. Use together with base.
+#
+# The marker is spelled with a character class / split examples below so this file
+# can itself be committed to a repo whose existing hooks grep for the bare word.
+
+[[rule]]
+id = "public-confidential-marker"
+kind = "content"
+stage = "pre"
+paths = ["**"]
+exclude = [".githooks/**", ".husky/**", "scripts/check-*"]  # guard scripts must name the marker to find it
+regex = '\bCONFIDENTIA[L]\b'
+why = "This repository is public. The confidential marker means the text came from a private source (strategy, legal, unreleased plans, private code) - publishing it can't be undone."
+fix = "Keep private content in the private repo and link to it, or rewrite it as public-safe text without the marker. If you copied a private file here, delete the copy."
+bad = ["<!-- CONFIDENTI{{}}AL -->", "// CONFIDENTI{{}}AL"]
+good = ["<!-- public -->", "confidentiality is handled by the private repo"]
+
+[[rule]]
+id = "public-config-files"
+kind = "forbidden_file"
+paths = ["google-services.json", "GoogleService-Info.plist", "*.mobileprovision", "firebase-adminsdk*.json"]
+why = "Platform config files tie this public code to private cloud projects and carry project IDs and API keys."
+fix = "Unstage it (`git rm --cached <file>`), add it to .gitignore, and document in the README where contributors get their own copy."
+bad = ["app/google-services.json", "ios/GoogleService-Info.plist"]
+good = ["app/google-services.json.example"]

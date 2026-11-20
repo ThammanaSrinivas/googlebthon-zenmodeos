@@ -16,7 +16,8 @@ Needs macOS 26 and Xcode 26 or later (Swift 6.2).
 
 ```bash
 scripts/build-mac-app.sh --open     # builds "ZenMode OS.app" and launches it
-swift test                          # contracts, rules and Zeno
+swift test                          # Albeit (the design system)
+scripts/test-linux.sh               # Packages/ZenShared: contracts, rules, sync, fakes (also on Linux)
 scripts/snapshot-tour.sh /tmp/zen   # debug: renders every screen to PNG
 ```
 
@@ -26,14 +27,25 @@ their numbers is labelled **Demo data**.
 ## How it's built
 
 ```
+Package.swift      the Mac app: Albeit + ZenModeMac, on Packages/ZenShared (+ ZenPrivate when present)
 Sources/
-  ZenAPI/      contracts and pure rules: the score, the weekly streak, the Zeno nudge schema
-               and its guardrails, join codes, the 5+ cohort rule, quiet hours. No UI, no network.
-  ZenMock/     fakes behind the same contracts, for the open build, the tests and offline demos.
-  Albeit/      the design system: tokens, type, Zeno (eight feelings, springs at 240 Hz),
-               the lit backdrop, Liquid Glass components.
-  ZenModeMac/  the app: the notch panel, onboarding, Today, macOS platform code.
-Tests/         Swift Testing suites for ZenAPI and Albeit.
+  Albeit/          the design system: tokens, type, Zeno (eight feelings, springs at 240 Hz),
+                   the lit backdrop, Liquid Glass components.
+  ZenModeMac/      the app: the notch panel, onboarding, Today, macOS platform code.
+Tests/AlbeitTests/
+Packages/ZenShared/  the shared, UI-free package (macOS, iOS and Linux)
+  Sources/
+    ZenAPI/        the one app contract: protocols and value types, plus the pure rules every
+                   surface shares (the score, the weekly streak, the Zeno nudge schema and its
+                   guardrails, join codes, the 5+ cohort rule, quiet hours, cross-device sync).
+    ZenLogic/      rules identical to the server's: the Zen Score formula (ZenScoreRule), local
+                   days, the cross-device combine (CombineRule), the name policy, and
+                   ScoreSnapshotBuilder (the snapshot every device shows).
+    ZenMock/       fakes behind the same contracts, for the open build, the tests and offline
+                   demos. FakeSync runs the real combine on every publish.
+    MacUsage/      the Mac's distracting-minutes tracker, the report builder and MacDaySync (the
+                   throttled publisher); the AppKit adapter sits behind `canImport(AppKit)`.
+  Tests/           Swift Testing suites, with the shared vectors in ZenLogicTests/Vectors.
 ```
 
 - **Open core.** The app only ever sees the protocols in `ZenAPI`. Firebase, sync and the Gemini
@@ -55,6 +67,64 @@ Tests/         Swift Testing suites for ZenAPI and Albeit.
   onboarding (Return, ←/→, ⌘←), Reduce Motion lands everything in place.
 
 Bundle ids: `com.zenmodeos.buildathon.mac`, `com.zenmodeos.buildathon.ios`.
+
+## Open core and the private package
+
+Everything in this repo is public (GPLv3) and builds with no backend at all. The live backend is
+a separate, private Swift package, `ZenPrivate`, that implements the ZenAPI protocols
+(`AuthService`, `DaySyncService`, `ScoreService`, `CohortService`, `ZenoNudgeService`).
+
+```
+ZenModeMac ──▶ Packages/ZenShared ◀── ZenPrivate (private repo, optional)
+     └────────────────────────────────────▲
+```
+
+- `ZenPrivate` depends only on `Packages/ZenShared` (ZenAPI for the contract, ZenLogic for the same
+  combine the server runs), never on the root package, so there is no cycle.
+- The root `Package.swift` links `ZenPrivate` when the private repo is cloned beside this one, at
+  `../googlebthon-zenmodeos-private/ZenPrivate`. The app picks it in `Services.swift` with
+  `#if canImport(ZenPrivate)`, and falls back to the ZenMock fakes otherwise (every surface then
+  says **Demo data**). `ZEN_USE_MOCK=1` forces the fakes; on Linux the root always uses them.
+- Nothing here imports a backend SDK or names the backend's storage, and the guardrails below
+  enforce that on every commit.
+
+## Cross-device sync
+
+One Zen Score per person per day, the same number on every device and in their cohort seat,
+within seconds of any device publishing.
+
+- **The rule (founders, 20 Nov 2026): the lowest score wins.** The day's score is the lower of the
+  phone's own score and the score of the computers' summed distracting minutes (their pull-backs
+  add up, the largest promise counts). `ZenLogic.CombineRule` is the rule; the server runs its own
+  port, and both replay `Packages/ZenShared/Tests/ZenLogicTests/Vectors/combine_v1.json`, a file
+  the backend generates and this repo keeps byte-identical.
+- **Freshness and places.** A phone that published within 18 hours decides the day; a computer
+  holds its place for 7 days; the free plan counts the phone and one computer.
+- **Privacy: an iPhone sends its score only.** `PhoneDayReport` drops minutes from an iPhone in
+  its initialiser, so Screen Time minutes never leave the phone (DPLA 3.3.3(P)). Once an iPhone
+  counts, the combined day carries no minutes either; device rows say "Counted on the phone".
+- **The Mac** tracks distracting minutes and pull-backs (`MacUsage.UsageTracker`), builds a report
+  with a random per-install id and a sequence that only grows, and `MacDaySync` publishes it: when
+  it changes, at most every 30 seconds, at once on foreground, sign-in and midnight, with backoff
+  while offline.
+
+## Building and testing
+
+- **Mac app:** macOS 26 with Xcode 26 (Swift 6.2): `scripts/build-mac-app.sh --open`, and
+  `swift test` for Albeit.
+- **Shared package:** `scripts/test-linux.sh` (or `cd Packages/ZenShared && swift test`) on macOS
+  or Linux. With a toolchain unpacked at `~/.local/share/swift/6.4.1`, the script finds it.
+- **CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs the shared
+  package's tests on Linux in `swift:6.4.1-noble`, and the guardrails.
+
+## Contributing
+
+- Work on `main`; force pushes and history rewrites are blocked.
+- Guardrails (`.guardrails/`) run in the pre-commit hook, in Claude Code's hooks and in CI: no
+  backend SDK imports, no backend storage or function names, no project ids, no signing files or
+  app plists. Turn the hook on once per clone with `git config core.hooksPath .githooks`;
+  `.guardrails/gr list` shows the rules and `.guardrails/gr check --changed` checks your work.
+- New shared logic goes in `Packages/ZenShared` with its tests, so it runs on Linux CI.
 
 ## Licence
 

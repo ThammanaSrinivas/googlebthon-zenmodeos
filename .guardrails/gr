@@ -1,0 +1,17 @@
+#!/bin/sh
+# guardrails launcher - the single entry point used by Claude Code hooks, the git
+# pre-commit hook, CI and humans. Finds a Python 3.11+ (python3 on Linux/macOS,
+# python or `py -3` on Windows Git Bash) and runs the vendored engine.
+# Managed by guardrails install.py: re-run the installer to update, don't edit.
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+engine="$dir/engine/gr.py"
+check='import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'
+for py in "${GUARDRAILS_PYTHON:-}" python3 python "py -3"; do
+  [ -n "$py" ] || continue
+  # shellcheck disable=SC2086 # "py -3" must split into command + flag
+  if $py -c "$check" >/dev/null 2>&1; then
+    exec $py "$engine" "$@"
+  fi
+done
+echo "guardrails: no Python 3.11+ found (set GUARDRAILS_PYTHON to one)." >&2
+exit 1

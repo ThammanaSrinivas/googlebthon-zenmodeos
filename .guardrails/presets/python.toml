@@ -1,0 +1,73 @@
+# python - use together with base. Vendored by install.py; customise from guardrails.toml.
+
+[[rule]]
+id = "py-shell-true"
+kind = "content"
+paths = ["*.py"]
+regex = '\bshell\s*=\s*True\b'
+why = "shell=True hands the whole string to /bin/sh, so any interpolated value can inject commands."
+fix = "Pass an argument list without a shell: subprocess.run([\"git\", \"log\", path], check=True). Use shlex.split only for trusted, constant strings."
+bad = ["subprocess.run(cmd, shell=True)", "Popen(f'ls {d}', shell = True)"]
+good = ["subprocess.run(['ls', d], check=True)", "use_shell = False"]
+
+[[rule]]
+id = "py-tls-verify-off"
+kind = "content"
+paths = ["*.py"]
+regex = '\bverify\s*=\s*False\b|\bCERT_NONE\b|_create_unverified_context\('
+why = "Disabling certificate verification makes every HTTPS call interceptable - and it never gets turned back on."
+fix = "Fix the certificate problem: pass verify=\"/path/to/ca.pem\" (or set REQUESTS_CA_BUNDLE) for a private CA, or use the service's proper hostname."
+bad = ["requests.get(url, verify=False)", "ctx.verify_mode = ssl.CERT_NONE"]
+good = ["requests.get(url, timeout=10)", "requests.get(url, verify=ca_path)"]
+
+[[rule]]
+id = "py-unsafe-deserialize"
+kind = "content"
+paths = ["*.py"]
+regex = '\byaml\.(unsafe_)?load\((?![^)]*Loader\s*=\s*(yaml\.)?(Safe|CSafe)Loader)|\bpickle\.loads?\(|\bmarshal\.loads?\('
+why = "yaml.load with a non-safe loader and pickle/marshal execute code embedded in the data they read."
+fix = "Use yaml.safe_load / json for data. Only unpickle files your own process wrote; never data that crossed a network or user boundary."
+bad = ["yaml.load(f)", "yaml.load(f, Loader=yaml.FullLoader)", "obj = pickle.loads(body)"]
+good = ["yaml.safe_load(f)", "yaml.load(f, Loader=yaml.SafeLoader)", "json.loads(body)"]
+
+[[rule]]
+id = "py-eval"
+kind = "content"
+paths = ["*.py"]
+exclude = ["test_*.py", "*_test.py", "**/tests/**", "conftest.py"]
+regex = '(?<![\w.])(eval|exec)\s*\('
+why = "eval/exec run strings as code - one unescaped input away from arbitrary code execution."
+fix = "Use ast.literal_eval for literals, json for data, or a dict of functions for dispatch."
+bad = ["x = eval(user_input)", "exec(code)"]
+good = ["ast.literal_eval(s)", "model.eval()", "self.evaluate(x)"]
+
+[[rule]]
+id = "py-debugger"
+kind = "content"
+paths = ["*.py"]
+regex = '^\s*(import (i?pdb|pudb)\b|breakpoint\(\)|(i?pdb)\.set_trace\(\))'
+why = "A leftover breakpoint hangs the program (and CI) waiting for input that never comes."
+fix = "Remove it; use your editor's breakpoints, or logging, instead."
+bad = ["import pdb", "    breakpoint()", "pdb.set_trace()"]
+good = ["# call breakpoint() when debugging locally", "import logging"]
+
+[[rule]]
+id = "py-skipped-test"
+kind = "content"
+paths = ["test_*.py", "*_test.py", "**/tests/**/*.py", "conftest.py"]
+regex = '@pytest\.mark\.skip\b|@unittest\.skip\b|^\s*pytest\.skip\(|\bself\.skipTest\('
+why = "Skipping a failing test hides the bug it found; the suite goes green while the behaviour stays broken."
+fix = "Fix the code - or the test, if the test is what's wrong. If it must be skipped, ask the user, and prefer skipif with a concrete condition and reason."
+bad = ["@pytest.mark.skip", "@unittest.skip('flaky')", "    pytest.skip('later')"]
+good = ["@pytest.mark.skipif(sys.platform == 'win32', reason='posix only')", "@pytest.mark.parametrize('x', [1])"]
+
+[[rule]]
+id = "py-duplicate-text"
+kind = "duplicate_literal"
+paths = ["*.py"]
+exclude = ["**/tests/**", "**/test/**", "test_*.py", "*_test.py", "conftest.py", "**/migrations/**"]
+bad = ['log("Could not reach the server"); warn("Could not reach the server"); raise Down("Could not reach the server")']
+good = [
+  'UNREACHABLE = "Could not reach the server"; log(UNREACHABLE); warn(UNREACHABLE)',
+  '# "Could not reach the server" "Could not reach the server" "Could not reach the server"',
+]

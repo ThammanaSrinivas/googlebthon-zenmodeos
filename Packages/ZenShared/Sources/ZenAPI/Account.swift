@@ -38,4 +38,14 @@ public protocol AuthService: Sendable {
     func newPairingCode() async throws(AuthError) -> PairingCode
     /// Returns once a phone approves the code.
     func waitForApproval(of code: PairingCode) async throws(AuthError) -> ZenUser
+    /// The phone's side of pairing: the signed-in iPhone approves the code the Mac shows (scanned
+    /// from the QR or typed), and the Mac signs in to the same account.
+    func approvePairing(code: JoinCode) async throws(AuthError)
+    func signOut() async throws(AuthError)
+}
+
+extension AuthService {
+    /// Defaults so fakes and older conformers keep compiling.
+    public func approvePairing(code: JoinCode) async throws(AuthError) { throw .unavailable }
+    public func signOut() async throws(AuthError) {}
 }

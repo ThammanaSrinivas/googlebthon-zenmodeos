@@ -1,0 +1,9 @@
+#!/bin/sh
+# Git pre-commit hook. Add your own checks below the guardrails block.
+# guardrails:begin - managed by guardrails install.py (re-run it to update this block)
+"$(git rev-parse --show-toplevel)/.guardrails/gr" check --staged || exit 1
+# guardrails:end
+
+# A hook that lived in .git/hooks keeps running after core.hooksPath moved here.
+legacy="$(git rev-parse --git-dir)/hooks/pre-commit"
+if [ -x "$legacy" ]; then "$legacy" "$@" || exit $?; fi

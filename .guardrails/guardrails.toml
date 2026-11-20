@@ -1,0 +1,159 @@
+# Project guardrails - yours to edit (the installer never overwrites this file).
+#
+# Presets in `extends` live in .guardrails/presets/ and are refreshed whenever the
+# installer re-runs; everything project-specific goes here. After a change:
+#     .guardrails/gr test && .guardrails/gr check
+# Reference: https://github.com/ThammanaSrinivas/guardrails#configuration
+#
+# Every rule needs `why` and `fix`. That text is the micro-context Claude reads at
+# the moment it is blocked, so write it as an instruction: what to do instead.
+
+extends = ["base", "public-repo"]
+
+# Inherited rules to switch off, by id (see `.guardrails/gr list`).
+disable = []
+
+[settings]
+# Main is the working branch here (Srinivas, 20 Nov 2026); force pushes and rewrites stay blocked.
+protected_branches = ["!main", "!master"]
+# List settings add to the presets' lists; prefix an entry with "!" to take one out.
+# exclude = ["legacy/**"]                 # never scanned by content rules
+# secret_files = ["config/secrets.yml"]   # where real secrets may be written (gitignored!)
+# protected_branches = ["develop"]        # pushes here need the user's OK
+# bypass_ask = "block"   # "ask" rules under bypassPermissions: "block" (default) or "ask"
+# stop_check = true      # Stop hook: no finishing while changed files break rules
+
+# Adjust an inherited rule. Keys replace; extra_<list> appends.
+# [override.max-file-lines]
+# max = 800
+# extra_exclude = ["src/generated/**"]
+
+# Project-specific rules. A few shapes worth copying:
+#
+# [[rule]]                       # an architectural boundary
+# id = "ui-no-direct-db"
+# kind = "content"
+# paths = ["src/ui/**/*.ts", "src/ui/**/*.tsx"]
+# regex = '^import .* from "(pg|@prisma/client)"'
+# why = "UI code reaches data only through src/data/, so storage can change in one place."
+# fix = "Call a repository function in src/data/ (add one there if it's missing)."
+# bad = ['import { Pool } from "pg"']
+# good = ['import { listUsers } from "../data/users"']
+#
+# [[rule]]                       # string literals owned by one file
+# id = "schema-literals"
+# kind = "source_of_truth"
+# source = "src/db/schema.ts"
+# extract = 'export const \w+ = "([^"]+)"'
+# paths = ["src/**/*.ts"]
+# why = "Collection/field names live in src/db/schema.ts so a rename can't miss a call site."
+# fix = "Import the constant from src/db/schema.ts instead of repeating the string."
+#
+# [[rule]]                       # files that must keep their explanatory tags
+# id = "choke-point-tags"
+# kind = "required_tags"
+# paths = ["src/core/ServiceLocator.kt"]
+# tags = ["[WHAT]", "[WHY]", "[HOW]", "[WHERE]"]
+# why = "This file explains the architecture; the tags are how readers (and AI) find that."
+# fix = "Restore the missing tag comment with its explanation; don't delete it to make an edit simpler."
+
+# Public-repo rules: no private code here (Srinivas, 20 Nov 2026).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ZenMode OS: this repo is PUBLIC (GPLv3). The backend lives in a private repo and
+# reaches the apps only as the ZenCorePrivate package, behind `#if canImport`.
+# These rules keep its code, names and project ids out of here. Private names are
+# written with character classes (zen[_]score) and examples split with {{}}, so this
+# file never spells them out itself.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[rule]]
+id = "public-no-backend-sdk-imports"
+kind = "content"
+stage = "pre"
+paths = ["**/*.swift"]
+regex = '^\s*(@\w+\s+)*import\s+((class|struct|enum|protocol|func|var|let)\s+)?(Fire[b]ase|GoogleSign[I]n)\w*'
+why = "This public repo builds with no backend: Firebase and Google Sign-In belong only to the private ZenCorePrivate package. An SDK import here breaks the open-source build and leaks how the backend works."
+fix = "Talk to the backend through the ZenContracts protocols (AuthService, DaySyncService, CircleService) and implement the SDK side in the private repo's ZenCorePrivate. For previews and tests use ZenMock (ZenServices.mock())."
+ref = "Sources/ZenContracts/Contracts.swift"
+bad = ["import Fire{{}}base", "import Fire{{}}baseFirestore", "@preconcurrency import Fire{{}}baseAuth", "import GoogleSign{{}}In", "import struct Fire{{}}baseFirestore.Timestamp"]
+good = ["import ZenContracts", "import Foundation", "// the private repo imports the backend SDKs"]
+
+[[rule]]
+id = "public-packages-no-private-import"
+kind = "content"
+stage = "pre"
+paths = ["Sources/**/*.swift", "Tests/**/*.swift"]
+regex = '^\s*(@\w+\s+)*import\s+ZenCore[P]rivate\b'
+why = "The packages here must compile and test with no private code at all (CI runs them on Linux from a public clone). Only an app target may pick the private backend, and only when it is present."
+fix = "Keep the packages on ZenContracts. Choose the backend in the app's wiring file under Apps/, inside `#if canImport(ZenCorePrivate)` … `#else` ZenServices.mock() `#endif` (Apps/README.md shows it)."
+ref = "Apps/README.md"
+bad = ["import ZenCore{{}}Private", "    @testable import ZenCore{{}}Private"]
+good = ["import ZenContracts", "// apps pick ZenCorePrivate behind canImport"]
+
+[[rule]]
+id = "public-private-import-guarded"
+kind = "content"
+stage = "pre"
+paths = ["**/*.swift"]
+regex = '^(@\w+\s+)*import\s+ZenCore[P]rivate\b'
+why = "A bare import of the private package fails to build for everyone without it: contributors, CI and the judges cloning this repo."
+fix = "Put the import inside `#if canImport(ZenCorePrivate)` … `#endif`, indented one level, with ZenServices.mock() in the `#else` branch (the wiring snippet in Apps/README.md)."
+ref = "Apps/README.md"
+bad = ["import ZenCore{{}}Private", "@preconcurrency import ZenCore{{}}Private"]
+good = ["    import ZenCorePrivate", "#if canImport(ZenCorePrivate)"]
+
+[[rule]]
+id = "public-no-backend-field-names"
+kind = "content"
+stage = "pre"
+paths = ["**"]
+regex = '\b(display[_]name|zen[_]score|counted[_]min|pull[_]backs|promise[_]min|written[_]at|circle[_]id|device[_]limit|device[_]minutes|leader[_]uid|join[_]codes?|score[_]only|combine[_]version|joined[_]at|time[_]cnt|local[_]date)\b'
+why = "These are the private backend's stored field and collection names. Here they would document the private schema in public, and tie the apps to storage details the contract deliberately hides."
+fix = "Use the ZenContracts names (zenScore, countedMinutes, pullBacks, promiseMinutes, …); mapping them to stored fields is the private ZenCorePrivate's job. Vector files shared with the backend use the same camelCase names."
+ref = "Sources/ZenContracts/Contracts.swift"
+bad = ['let key = "zen_{{}}score"', "counted_{{}}min: 42", '"join_{{}}codes"', 'doc["circle_{{}}id"]']
+good = ["let zenScore = 81", "countedMinutes: 42", "joinCode: \"CALM42\""]
+
+[[rule]]
+id = "public-no-backend-function-names"
+kind = "content"
+stage = "pre"
+paths = ["**"]
+regex = '\b(on[U]ser(Day[C]hanged|Score[S]ynced)|random[C]ircleConnect|verify[A]ppStorePurchase|verify[P]urchase|on[A]ppStoreNotification|recheck[A]ppStoreSubscriptions|on[P]layRtdn|on[C]ircleMembersChanged)\b'
+why = "These are the private backend's server function names. Naming them here publishes the backend's surface and couples the apps to how the server is built."
+fix = "Describe the behaviour through the contract (\"the backend runs the combine on every publish\") and leave the function's name to the private repo."
+bad = ["onUser{{}}DayChanged", "exports.onUser{{}}ScoreSynced", "randomCircle{{}}Connect()"]
+good = ["createCircle(name:)", "the backend runs the combine on every write"]
+
+[[rule]]
+id = "public-no-firestore-paths"
+kind = "content"
+stage = "pre"
+paths = ["**"]
+regex = '''(["'`/](users|circles|relationships|join[_]codes)/(\{|\$|\\\(|"|')|/private/d[a]y\b|\.(collection|document)\(\s*["']|Firestore\.fire[s]tore\()'''
+why = "Database paths and Firestore calls are the private backend's business. In this repo they would leak the schema and bypass the contract the apps are meant to depend on."
+fix = "Go through DaySyncService / CircleService from ZenContracts; the private ZenCorePrivate owns every path. In docs, say \"the backend stores the account's day\" without the path."
+ref = "Sources/ZenContracts/Contracts.swift"
+bad = ['db.collection{{}}("users")', 'let path = "users{{}}/\(uid)"', "users{{}}/{uid}/private/day", "Firestore.fire{{}}store()"]
+good = ["try await services.days.publish(phone: report)", "github.com/users/settings", "// the backend keeps one doc per account"]
+
+[[rule]]
+id = "public-no-project-ids"
+kind = "content"
+stage = "pre"
+paths = ["**"]
+regex = '(?i)(zenmode[l]auncher|zenmodeos-[b]uildathon|[a-z0-9-]+\.(fire[b]aseapp|fire[b]aseio)\.com|[a-z0-9-]+\.app[s]pot\.com)'
+why = "Cloud project ids and their hostnames point straight at the production or buildathon backend; in a public repo they invite abuse and tie the open code to our private projects."
+fix = "Leave project ids to the private repo's config (and GoogleService-Info.plist, which is gitignored). Refer to \"the backend project\" in docs. Bundle ids like com.zenmodeos.buildathon.ios are fine."
+bad = ["projectId: zenmode{{}}launcher", "zenmodeos-{{}}buildathon", "https://zenmodeos-x.fire{{}}baseapp.com"]
+good = ["com.zenmodeos.buildathon.ios", "the buildathon backend project"]
+
+[[rule]]
+id = "public-apple-signing-files"
+kind = "forbidden_file"
+paths = ["*.p8", "*.p12", "*.mobileprovision", "*.provisionprofile", "*.cer", "GoogleService-Info*.plist"]
+why = "Signing keys, provisioning profiles and Firebase app plists identify our Apple team and backend; once pushed to a public repo they're out for good."
+fix = "Unstage it (`git rm --cached <file>`), keep it in the private repo or your keychain, and make sure .gitignore lists it."
+bad = ["AuthKey_ABC123.p8", "Apps/iOS/GoogleService-Info.plist", "dist/ZenModeOS.mobileprovision"]
+good = ["Apps/README.md", "Apps/iOS/Info.plist"]
