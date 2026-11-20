@@ -112,22 +112,67 @@ struct GoldSparkline: View {
     }
 }
 
-/// A terms link: plain words with an arrow, in the brand colour, opening zenmodeos.com.
+/// A terms link: plain words in the link's colour, opening zenmodeos.com. The colour already says
+/// "link", so there's no arrow; hover deepens it (lighter on ink) and underlines it, a press dims
+/// it, and the keyboard gets a ring. `underlined` keeps a dotted line for a link whose colour
+/// alone wouldn't set it apart (grey on the ink card).
 struct TermsLink: View {
     let title: String
     let url: URL
     var color: Color = Color.zen.textBrand
+    var hoverColor: Color = TermsLink.brandHover
+    var underlined = false
+
+    static let brandHover = Color(light: 0x0A5C12, dark: 0x8AF08F)
+    static let amberHover = Color(light: 0x5A4200, dark: 0xFFE7A3)
+
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        Link(destination: url) {
-            HStack(spacing: 3) {
-                Text(title)
-                Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .semibold))
-            }
-            .font(ZenFont.text(12, .semibold))
-            .foregroundStyle(color)
+        Button(title) { openURL(url) }
+            .buttonStyle(TermsLinkStyle(color: color, hoverColor: hoverColor, underlined: underlined))
+            .focusEffectDisabled()
+            .help(url.absoluteString)
+            .accessibilityRemoveTraits(.isButton)
+            .accessibilityAddTraits(.isLink)
+            .accessibilityHint("Opens zenmodeos.com in your browser")
+    }
+}
+
+private struct TermsLinkStyle: ButtonStyle {
+    let color: Color
+    let hoverColor: Color
+    let underlined: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        LinkBody(configuration: configuration, color: color, hoverColor: hoverColor, underlined: underlined)
+    }
+
+    private struct LinkBody: View {
+        let configuration: Configuration
+        let color: Color
+        let hoverColor: Color
+        let underlined: Bool
+        @State private var hovering = false
+        @Environment(\.isFocused) private var focused
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            configuration.label
+                .font(ZenFont.text(12, .semibold))
+                .underline(hovering || focused || underlined, pattern: hovering || focused ? .solid : .dot, color: hovering ? hoverColor : color)
+                .foregroundStyle(hovering ? hoverColor : color)
+                .opacity(configuration.isPressed ? 0.6 : 1)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+                .overlay {
+                    if focused {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(color, lineWidth: 1.5).padding(-4)
+                    }
+                }
+                .onHover { hovering = $0 }
+                .pointerStyle(.link)
+                .animation(reduceMotion ? nil : ZenMotion.calm(ZenMotion.t1), value: hovering)
         }
-        .help(url.absoluteString)
-        .accessibilityHint("Opens zenmodeos.com in your browser")
     }
 }

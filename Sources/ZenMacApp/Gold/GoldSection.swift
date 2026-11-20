@@ -23,7 +23,7 @@ enum GoldCopy {
         ("Gold opens till Sunday, and all next week.", 13),
         ("Pick 1 to 10 units of GOLDBEES, then confirm the order yourself in Zerodha Kite.", 4),
     ]
-    static let noCustody = "ZenMode OS is not a broker and gives no investment advice. Zerodha executes, settles and holds; ZenMode never takes custody of money or units."
+    static let noCustody = "ZenMode OS is not a broker and gives no investment advice. Zerodha executes, settles and holds; ZenMode OS never takes custody of money or units."
     static let eligibility = "You need to be 18 or older, with an active Zerodha trading and demat account and KYC done."
     static let handOff = "Kite opens in your browser, where you review and confirm the order. The price you get is the price your order executes at."
     static let glanceOpen = "Gold is open this week"
@@ -48,6 +48,7 @@ struct GoldSection: View {
 
     var body: some View {
         let gate = model.goldGate
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: ZenSpace.s6) {
                 hero(gate)
@@ -61,11 +62,21 @@ struct GoldSection: View {
                     ordersCard
                     howCard.frame(width: 340)
                 }
-                legalFooter
+                legalFooter.id("footer")
             }
             .padding(ZenSpace.s6)
         }
         .scrollIndicators(.hidden)
+        #if DEBUG
+        // Debug renders: ZEN_GOLD_SCROLL=footer shows the terms links.
+        .task {
+            if let anchor = ProcessInfo.processInfo.environment["ZEN_GOLD_SCROLL"] {
+                try? await Task.sleep(for: .milliseconds(500))
+                proxy.scrollTo(anchor, anchor: .bottom)
+            }
+        }
+        #endif
+        }
         .sheet(isPresented: $investing) { InvestSheet(gate: gate) }
         .task { market.start() }
     }
@@ -167,8 +178,8 @@ struct GoldSection: View {
                 }
             }
             HStack(spacing: ZenSpace.s4) {
-                TermsLink(title: GoldCopy.termsHandOff, url: GoldTerms.section(4), color: Color.zen.accentRewardText)
-                TermsLink(title: GoldCopy.termsEligibility, url: GoldTerms.section(3), color: Color.zen.accentRewardText)
+                TermsLink(title: GoldCopy.termsHandOff, url: GoldTerms.section(4), color: Color.zen.accentRewardText, hoverColor: TermsLink.amberHover)
+                TermsLink(title: GoldCopy.termsEligibility, url: GoldTerms.section(3), color: Color.zen.accentRewardText, hoverColor: TermsLink.amberHover)
             }
             .padding(.top, ZenSpace.s1)
         }
@@ -259,7 +270,7 @@ struct GoldCard: View {
             .accessibilityHint(gate.isOpen ? "Choose how many units to buy, then confirm in Kite" : gate.line)
             HStack(alignment: .firstTextBaseline, spacing: ZenSpace.s2) {
                 Text(GoldCopy.risk).font(ZenFont.text(11.5)).foregroundStyle(Color(hex: 0x9DA298))
-                TermsLink(title: GoldCopy.termsGold, url: GoldTerms.section(10), color: Color(hex: 0xFFD86B))
+                TermsLink(title: GoldCopy.termsGold, url: GoldTerms.section(10), color: Color(hex: 0xFFD86B), hoverColor: Color(hex: 0xFFE7A3))
             }
         }
         .padding(ZenSpace.s5)
@@ -296,7 +307,7 @@ struct GoldCard: View {
                     Text(market.status == .stale ? GoldCopy.stalePrice : "\(GoldMarket.stamp(q)) · Prev close \(Rupees.text(paise: q.previousClosePaise))")
                         .font(ZenFont.number(10.5)).foregroundStyle(Color(hex: 0x9DA298))
                     Spacer()
-                    TermsLink(title: GoldCopy.indicative, url: GoldTerms.section(8), color: Color(hex: 0x9DA298))
+                    TermsLink(title: GoldCopy.indicative, url: GoldTerms.section(8), color: Color(hex: 0x9DA298), hoverColor: Color(hex: 0xE4E6E0), underlined: true)
                 }
             }
         }
