@@ -86,18 +86,35 @@ final class AppModel {
         #endif
         AppNap.holdOff()
         frontmost.start()
-        Task {
-            try? await Task.sleep(for: .milliseconds(700))
-            notch.speak(.init(feeling: .happy, kicker: Copy.Hello.kicker, line: Copy.Hello.line), hold: .seconds(3.2), respectQuiet: false)
-        }
         followScore()
         Task {
-            if let person = await services.auth.currentUser() {
-                user = person
-                startDaySync()
+            // Signed in on an earlier launch: straight to Today, and Zeno says welcome back.
+            let person = await services.auth.currentUser()
+            if let person { resume(signedIn: person) }
+            try? await Task.sleep(for: .milliseconds(700))
+            if let person {
+                notch.speak(.init(feeling: .happy, kicker: Copy.Hello.backKicker, line: Copy.Hello.back(person.firstName)), hold: .seconds(3.2))
+            } else {
+                notch.speak(.init(feeling: .happy, kicker: Copy.Hello.kicker, line: Copy.Hello.line), hold: .seconds(3.2), respectQuiet: false)
             }
         }
         startWeekAndCalendar()
+    }
+
+    /// The account is already signed in (Firebase kept the session): the day syncs and, unless a
+    /// later step is already showing, the app opens on Today. Before this, every launch began at
+    /// the welcome story as if signed out, so signing in never seemed to stick.
+    func resume(signedIn person: ZenUser) {
+        user = person
+        pairState = .paired
+        startDaySync()
+        stage = Self.launchStage(stage, signedIn: true)
+    }
+
+    /// Where a launch opens: Today when signed in and still on the story's first card; anything
+    /// else (a debug tour's step, a person mid-onboarding) stays where it is.
+    static func launchStage(_ current: Stage, signedIn: Bool) -> Stage {
+        signedIn && current == .onboarding(.story) ? .today : current
     }
 
     // MARK: Onboarding

@@ -8,6 +8,9 @@ enum Copy {
     enum Hello {
         static let kicker = "ZenMode OS · hello"
         static let line = "Hi, I'm Zeno. I live up here."
+        /// Opening the app again, already signed in.
+        static let backKicker = "ZenMode OS · welcome back"
+        static func back(_ name: String) -> String { name.isEmpty ? "Welcome back." : "Welcome back, \(name)." }
     }
 
     enum Story {
