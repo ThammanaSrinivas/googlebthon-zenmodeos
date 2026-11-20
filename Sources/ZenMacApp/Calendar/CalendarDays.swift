@@ -111,7 +111,8 @@ struct CalendarDays {
         let lastWeekEnd = cal.dateInterval(of: .weekOfYear, for: lastDay)!.end
         let count = cal.dateComponents([.day], from: first, to: lastWeekEnd).day ?? 35
         let range = DateInterval(start: first, end: lastWeekEnd)
-        return (range, days(from: first, count: count, inMonth: { interval.contains($0) }))
+        // Half-open: DateInterval.contains includes its end, which is the next month's 1st.
+        return (range, days(from: first, count: count, inMonth: { $0 >= interval.start && $0 < interval.end }))
     }
 
     /// Monday to Sunday around `day`.

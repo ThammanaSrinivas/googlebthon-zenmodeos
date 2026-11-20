@@ -67,8 +67,7 @@ struct BuddiesTests {
         }
     }
 
-    @Test("Your week average is the average of your days so far",
-          .disabled("bug: Sources/ZenMacApp/Circle/CircleBuddies.swift:71, BuddyDemo \"you\" has weekTenths 72 but its week [72, 58, 81, 54, 81] averages 6.9 (69); the other four seats match their averages"))
+    @Test("Your week average is the average of your days so far")
     func yourAverage() throws {
         let you = try #require(BuddyDemo.circle.first { $0.isYou })
         let days = you.week.compactMap { $0 }

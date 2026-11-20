@@ -37,11 +37,11 @@ enum Copy {
 
     /// One example line per feeling, as Zeno says them in the notch.
     static let feelingLines: [(kicker: String, line: String)] = [
-        ("ZenMode · +5", "Good day locked in. Nice."),
-        ("ZenMode · 10:09", "Stretch? You've been at it a while."),
-        ("ZenMode · pickup 12", "Back again. Something on purpose?"),
-        ("ZenMode · week 46", "Week won. That's ten in a row."),
-        ("ZenMode · 22:40", "Bedtime soon. Last scroll?"),
+        ("\(product) · +5", "Good day locked in. Nice."),
+        ("\(product) · 10:09", "Stretch? You've been at it a while."),
+        ("\(product) · pickup 12", "Back again. Something on purpose?"),
+        ("\(product) · week 46", "Week won. That's ten in a row."),
+        ("\(product) · 22:40", "Bedtime soon. Last scroll?"),
     ]
 
     enum Seat {

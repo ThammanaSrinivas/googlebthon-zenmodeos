@@ -144,8 +144,7 @@ struct OnboardingFlowTests {
         #expect(await eventually { m.notch.moment.feeling == .happy })
     }
 
-    @Test("Settings › Test speaks with the full brand name",
-          .disabled("bug: Sources/ZenMacApp/AppModel.swift:432, testZeno's kicker is \"ZenMode · test\"; the brand is \"ZenMode OS\" in full"))
+    @Test("Settings › Test speaks with the full brand name")
     func testZenoBrand() async {
         let m = appModel()
         m.testZeno(.happy)

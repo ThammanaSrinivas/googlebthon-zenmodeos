@@ -36,7 +36,7 @@ enum WeekCopy {
     static let askThinking = "Zeno's thinking…"
     static let askEmpty = "Pick a question. Answers come from your scores and this Mac's minutes, never from your apps or your iPhone's time."
     static let askFromGemini = "Gemini · from your scores only"
-    static let askFromHere = "Written here: Gemini didn't answer in time"
+    static let askFromHere = "Written on this Mac, from your scores"
     static let askFallback = "I can't read the week right now. Your scores are safe; ask again in a moment."
 
     static let recapsTitle = "Past recaps"

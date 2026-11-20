@@ -88,6 +88,14 @@ public enum NudgeSource: String, Sendable {
 
 public protocol ZenoNudgeService: Sendable {
     func nudge(for context: NudgeContext) async throws -> ZenoNudge
+    /// Who writes the lines this service returns. The live model is `.gemini` (the default);
+    /// anything canned (fakes, the offline demo) says `.fallback`, so a line is never credited to Gemini
+    /// when Gemini didn't write it.
+    var source: NudgeSource { get }
+}
+
+extension ZenoNudgeService {
+    public var source: NudgeSource { .gemini }
 }
 
 /// Wraps any nudge service with a timeout, validation and the fixed fallback, so callers always
@@ -111,7 +119,7 @@ public struct ResilientNudges: Sendable {
             group.cancelAll()
             return first
         }
-        if let live { return (live, .gemini) }
+        if let live { return (live, service.source) }
         return (.fallback, .fallback)
     }
 }

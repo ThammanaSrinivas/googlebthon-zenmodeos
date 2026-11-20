@@ -135,11 +135,14 @@ struct FakeNudgesContractTests {
         #expect(try await FakeNudges(index: 2).nudge(for: context(23)) == FakeNudges.lines[1])
     }
 
-    @Test func throughResilientNudgesTheDemoLineCountsAsGeminis() async {
+    /// A canned line passes through ResilientNudges untouched but is never credited to Gemini, so the
+    /// notch doesn't say "Zeno · Gemini" on the fakes.
+    @Test func throughResilientNudgesTheDemoLineIsNeverCreditedToGemini() async {
         let context = NudgeContext(scoreTenths: 81, goodDaysThisWeek: 3, weeklyStreak: 9, hourOfDay: 2, trigger: .hello)
         let (nudge, source) = await ResilientNudges(FakeNudges()).nudge(for: context)
         #expect(nudge == FakeNudges.lines[2])
-        #expect(source == .gemini)
+        #expect(FakeNudges().source == .fallback)
+        #expect(source == .fallback)
     }
 }
 

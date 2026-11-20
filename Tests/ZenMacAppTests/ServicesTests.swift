@@ -59,15 +59,13 @@ struct ServicesTests {
         #expect(nudge.line.count <= ZenoNudge.maxLineLength)
     }
 
-    @Test("A fake nudge is never labelled as written by Gemini",
-          .disabled("bug: ZenAPI ResilientNudges (Packages/ZenShared/Sources/ZenAPI/Nudge.swift:114) returns .gemini for any service that answers, so on the fakes AppModel.refreshNudge (Sources/ZenMacApp/AppModel.swift:259) shows the kicker \"Zeno · Gemini\" for FakeNudges' lines; expected a demo/fallback source when Services.isDemo"))
+    @Test("A fake nudge is never labelled as written by Gemini")
     func nudgeSource() async {
         let (_, source) = await Services.fakes().nudges.nudge(for: context)
         #expect(source != .gemini)
     }
 
-    @Test("The offline weekly review is never labelled as written by Gemini",
-          .disabled("bug: Sources/ZenMacApp/Week/WeekModels.swift:180, ResilientReviews returns .gemini for FakeReviews' text (AppModel.reviews uses FakeReviews on every build); expected a demo/fallback source"))
+    @Test("The offline weekly review is never labelled as written by Gemini")
     func reviewSource() async {
         let (_, source) = await ResilientReviews(service: FakeReviews()).review(for: WeekDemo.recap)
         #expect(source != .gemini)

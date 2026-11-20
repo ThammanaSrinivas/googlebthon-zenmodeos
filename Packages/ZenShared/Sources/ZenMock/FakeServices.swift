@@ -80,6 +80,9 @@ public struct FakeNudges: ZenoNudgeService {
 
     public init(index: Int = 0) { self.index = index }
 
+    /// Canned lines: never credited to Gemini.
+    public var source: NudgeSource { .fallback }
+
     public func nudge(for context: NudgeContext) async throws -> ZenoNudge {
         try await Task.sleep(for: .milliseconds(350))
         return Self.lines[(context.hourOfDay + index) % Self.lines.count]

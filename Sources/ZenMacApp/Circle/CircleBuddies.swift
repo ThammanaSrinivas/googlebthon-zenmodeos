@@ -68,8 +68,8 @@ enum Reaction: String, CaseIterable, Identifiable {
 enum BuddyDemo {
     static let circle: [Buddy] = [
         Buddy(id: "asha", name: "Asha", isYou: false, weekTenths: 78, todayTenths: 84, streak: 12, week: [79, 74, 82, 71, 84], device: .iPhone, received: 3),
-        Buddy(id: "you", name: "You", isYou: true, weekTenths: 72, todayTenths: 81, streak: 9, week: [72, 58, 81, 54, 81], device: .mac, received: 2),
-        Buddy(id: "ravi", name: "Ravi", isYou: false, weekTenths: 69, todayTenths: 62, streak: 4, week: [66, 71, 74, 70, 62], device: .android, received: 1),
+        Buddy(id: "you", name: "You", isYou: true, weekTenths: 69, todayTenths: 81, streak: 9, week: [72, 58, 81, 54, 81], device: .mac, received: 2),
+        Buddy(id: "ravi", name: "Ravi", isYou: false, weekTenths: 68, todayTenths: 62, streak: 4, week: [66, 71, 72, 70, 62], device: .android, received: 1),
         Buddy(id: "meera", name: "Meera", isYou: false, weekTenths: 64, todayTenths: nil, streak: 2, week: [61, 68, nil, 63, nil], device: .iPhone, received: 0),
         Buddy(id: "arjun", name: "Arjun", isYou: false, weekTenths: 57, todayTenths: 51, streak: 0, week: [55, 62, 49, 66, 51], device: .iPhone, received: 1),
     ]

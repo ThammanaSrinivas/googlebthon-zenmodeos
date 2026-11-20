@@ -23,10 +23,19 @@ struct WeekPrompt: Identifiable, Equatable, Sendable {
 /// pull-backs. Never app names, never an iPhone's minutes. Gemini on the server; the fake here.
 protocol WeekAskService: Sendable {
     func answer(_ prompt: WeekPrompt, recap: WeekRecap) async throws -> String
+    /// Who writes the answers: `.gemini` for the live model (the default), `.fallback` for anything canned.
+    var source: NudgeSource { get }
+}
+
+extension WeekAskService {
+    var source: NudgeSource { .gemini }
 }
 
 /// The demo voice, built from the same numbers the server would get.
 struct FakeWeekAsk: WeekAskService {
+    /// Answers worked out on this Mac from the week's numbers: never credited to Gemini.
+    var source: NudgeSource { .fallback }
+
     func answer(_ prompt: WeekPrompt, recap: WeekRecap) async throws -> String {
         try await Task.sleep(for: .milliseconds(900))
         let p = recap.progress
@@ -69,7 +78,7 @@ struct ResilientWeekAsk: Sendable {
             group.cancelAll()
             return first
         }
-        if let live { return (live, .gemini) }
+        if let live { return (live, service.source) }
         return (WeekCopy.askFallback, .fallback)
     }
 }

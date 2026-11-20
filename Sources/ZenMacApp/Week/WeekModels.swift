@@ -161,6 +161,12 @@ enum ReviewRejection: Error, Equatable, Sendable {
 
 protocol WeeklyReviewService: Sendable {
     func review(for recap: WeekRecap) async throws -> WeeklyReview
+    /// Who wrote the review: `.gemini` for the live model (the default), `.fallback` for anything canned.
+    var source: NudgeSource { get }
+}
+
+extension WeeklyReviewService {
+    var source: NudgeSource { .gemini }
 }
 
 /// Timeout, validation and the local fallback around any review service.
@@ -177,7 +183,7 @@ struct ResilientReviews: Sendable {
             group.cancelAll()
             return first
         }
-        if let live { return (live, .gemini) }
+        if let live { return (live, service.source) }
         return (.fallback(for: recap), .fallback)
     }
 }
@@ -186,6 +192,9 @@ struct ResilientReviews: Sendable {
 
 /// A review in the voice Gemini is asked for, for the offline demo.
 struct FakeReviews: WeeklyReviewService {
+    /// A canned review: never credited to Gemini.
+    var source: NudgeSource { .fallback }
+
     func review(for recap: WeekRecap) async throws -> WeeklyReview {
         try await Task.sleep(for: .milliseconds(1200))
         return WeeklyReview(

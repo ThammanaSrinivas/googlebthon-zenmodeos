@@ -88,8 +88,7 @@ struct CalendarDaysTests {
         #expect(days.prefix(6).allSatisfy { !$0.inMonth }) // 26 to 31 October
     }
 
-    @Test("Only the month's own days are marked in the month",
-          .disabled("bug: Sources/ZenMacApp/Calendar/CalendarDays.swift:114, monthGrid marks days with interval.contains($0), and DateInterval.contains includes the end, so the next month's 1st (1 Dec in the November 2026 grid) is drawn as part of the month; expected 30 in-month days, gets 31"))
+    @Test("Only the month's own days are marked in the month")
     func onlyTheMonth() {
         let days = november
         #expect(days.filter { $0.inMonth }.count == 30)

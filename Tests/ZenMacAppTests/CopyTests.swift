@@ -31,8 +31,7 @@ struct CopyTests {
         for line in lines { #expect(usesFullBrandName(line), "\(line)") }
     }
 
-    @Test("Zeno's example lines in the notch say ZenMode OS in full",
-          .disabled("bug: Sources/ZenMacApp/Copy.swift:40-44, Copy.feelingLines kickers read \"ZenMode · +5\", \"ZenMode · 10:09\"… — the brand is \"ZenMode OS\" in full"))
+    @Test("Zeno's example lines in the notch say ZenMode OS in full")
     func feelingKickers() {
         for (kicker, _) in Copy.feelingLines { #expect(usesFullBrandName(kicker), "\(kicker)") }
     }

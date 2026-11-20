@@ -149,8 +149,11 @@ final class VoicePreferences {
 
     var values: VoiceValues { didSet { if values != oldValue { save() } } }
     private static let key = "zen.voice.preferences.v1"
+    /// The store these choices came from; changes go back to the same one.
+    private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         if let data = defaults.data(forKey: Self.key), let saved = try? JSONDecoder().decode(VoiceValues.self, from: data) {
             values = saved
         } else {
@@ -159,7 +162,7 @@ final class VoicePreferences {
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(values) { UserDefaults.standard.set(data, forKey: Self.key) }
+        if let data = try? JSONEncoder().encode(values) { defaults.set(data, forKey: Self.key) }
     }
 }
 

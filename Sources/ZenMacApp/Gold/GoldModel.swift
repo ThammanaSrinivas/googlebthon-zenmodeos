@@ -152,10 +152,12 @@ final class GoldLedger {
     }
 }
 
-/// ₹ with Indian grouping: ₹1,23,456.50.
+/// ₹ with Indian grouping: ₹1,23,456.50, and a leading minus for a loss: -₹0.50.
 enum Rupees {
     static func text(paise: Int) -> String {
-        let rupees = paise / 100, rest = paise % 100
+        // Work on the magnitude so the sign shows once, in front (and Int.min can't overflow).
+        let magnitude = paise.magnitude
+        let rupees = magnitude / 100, rest = magnitude % 100
         var digits = String(rupees)
         var grouped = ""
         if digits.count > 3 {
@@ -168,6 +170,6 @@ enum Rupees {
         } else {
             grouped = digits
         }
-        return "₹" + grouped + (rest == 0 ? "" : String(format: ".%02d", rest))
+        return (paise < 0 ? "-₹" : "₹") + grouped + (rest == 0 ? "" : String(format: ".%02d", Int(rest)))
     }
 }

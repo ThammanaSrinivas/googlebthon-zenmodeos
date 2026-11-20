@@ -429,7 +429,7 @@ final class AppModel {
         let lines: [ZenoFeeling: String] = [.happy: "Good day locked in. Nice.", .pleasant: "Stretch? You've been at it a while.",
                                             .curious: "Back again. Something on purpose?", .proud: "Week won. That's ten in a row.",
                                             .sleepy: "Bedtime soon. Last scroll?"]
-        notch.speak(.init(feeling: feeling, kicker: "ZenMode · test", line: lines[feeling] ?? "Hi, I'm Zeno."), hold: .seconds(3.4), respectQuiet: false)
+        notch.speak(.init(feeling: feeling, kicker: "\(Copy.product) · test", line: lines[feeling] ?? "Hi, I'm Zeno."), hold: .seconds(3.4), respectQuiet: false)
     }
 
     func replayOnboarding() {

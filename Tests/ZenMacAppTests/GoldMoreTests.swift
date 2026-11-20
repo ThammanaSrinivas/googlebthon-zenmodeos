@@ -123,8 +123,7 @@ struct RupeeTests {
         #expect(Rupees.text(paise: paise) == text)
     }
 
-    @Test("A negative amount reads with a minus sign",
-          .disabled("bug: Sources/ZenMacApp/Gold/GoldModel.swift:156-172, Rupees.text(paise: -50) returns \"₹0.-50\" (and -12345 gives \"₹-,123.-45\"); expected \"-₹0.50\" / \"-₹123.45\". Only GoldMarket.move passes abs() today"))
+    @Test("A negative amount reads with a minus sign")
     func negative() {
         #expect(Rupees.text(paise: -50) == "-₹0.50")
         #expect(Rupees.text(paise: -12_345) == "-₹123.45")

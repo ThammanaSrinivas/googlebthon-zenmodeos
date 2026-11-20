@@ -124,8 +124,7 @@ struct VoicePreferencesStoreTests {
         #expect(VoicePreferences(defaults: scratchDefaults()).values == VoiceValues())
     }
 
-    @Test("A change is saved to the store it was given",
-          .disabled("bug: Sources/ZenMacApp/Settings/VoicePreferences.swift:153-163, init(defaults:) reads the given store but never keeps it, and save() always writes UserDefaults.standard: with an injected suite the change is lost (and leaks into .standard). Expected a new VoicePreferences(defaults: d) to see persona .warm; it sees .calm"))
+    @Test("A change is saved to the store it was given")
     func savesToGivenStore() {
         let d = scratchDefaults()
         let prefs = VoicePreferences(defaults: d)
