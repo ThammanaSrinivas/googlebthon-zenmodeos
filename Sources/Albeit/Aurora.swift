@@ -36,11 +36,11 @@ public struct ZenAurora: View {
         .accessibilityHidden(true)
     }
 
-    /// The brand light's strongest point: at most 0.12 by day and 0.10 at night, so text on the
+    /// The brand light's strongest point: at most 0.12 by day and 0.07 at night, so text on the
     /// ground keeps its contrast wherever it sits.
     static func lightAlpha(glow: Double, dark: Bool) -> Double {
         let k = min(max(glow, 0), 1)
-        return dark ? 0.03 + 0.07 * k : 0.05 + 0.07 * k
+        return dark ? 0.02 + 0.05 * k : 0.05 + 0.07 * k
     }
 }
 

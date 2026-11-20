@@ -59,7 +59,7 @@ public struct ZenPalette: Sendable {
     // Text
     public let textHeading = Color(light: 0x12160F, dark: 0xF2F3EE)
     public let textBody = Color(light: 0x4A4F46, dark: 0xC9CCC4)
-    public let textCaption = Color(light: 0x575C53, dark: 0xA9AEA5)
+    public let textCaption = Color(light: 0x575C53, dark: 0xB0B5AC)
     public let textBrand = Color(light: 0x0C6F15, dark: 0x5BDF62)
     // Lines
     public let borderHairline = Color(light: 0xDCDAD1, dark: 0x262B26)
@@ -75,9 +75,9 @@ public struct ZenPalette: Sendable {
     public let actionBrandPressed = Color(light: 0x085A10, dark: 0x48C94F)
     public let onActionBrand = Color(light: 0xFFFFFF, dark: 0x0E110E)
     /// The outline of a secondary control: ≥ 3:1 on every surface, the ground and glass.
-    public let controlBorder = Color(light: 0x6E746A, dark: 0x848C81)
+    public let controlBorder = Color(light: 0x6E746A, dark: 0x8E968B)
     /// The words and dashed outline of a disabled control: clearly off, still ≥ 3:1.
-    public let controlDisabled = Color(light: 0x7D8178, dark: 0x7A8177)
+    public let controlDisabled = Color(light: 0x767A71, dark: 0x878E84)
     /// The keyboard focus ring around any control.
     public let focusRing = Color(light: 0x0C6F15, dark: 0x7BE881)
     public let brandFill = Color(hex: 0x2AA136)
@@ -86,7 +86,7 @@ public struct ZenPalette: Sendable {
     public let accentRewardText = Color(light: 0x7A5A00, dark: 0xFFD86B)
     public let accentRewardTint = Color(light: 0xFFF3CC, dark: 0x2A2208)
     public let scoreGain = Color(light: 0x0C6F15, dark: 0x5BDF62)
-    public let scoreDeduct = Color(light: 0xA04000, dark: 0xFF8A3D)
+    public let scoreDeduct = Color(light: 0xA04000, dark: 0xFF9550)
     public let scoreDeductTint = Color(light: 0xFBE9DC, dark: 0x2B1A0E)
     public let ember = Color(hex: 0xFF6600)
     // How time felt (the Bloom palette, the same on every visual): gold focus, green on purpose,
