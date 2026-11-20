@@ -39,12 +39,13 @@ their numbers is labelled **Demo data**.
 ## How it's built
 
 ```
-Package.swift      the Mac app: Albeit + ZenMacApp, on Packages/ZenShared (+ ZenCorePrivate when present)
+Package.swift      the apps' libraries: Albeit, ZenMacApp, ZenPhoneApp, on Packages/ZenShared (+ ZenCorePrivate when present)
 Sources/
   Albeit/        the design system: tokens, type, Zeno (eight feelings, springs at 240 Hz),
                  the lit backdrop, Liquid Glass components.
   ZenMacApp/     the Mac app as a library: the notch panel, onboarding, Today, macOS platform code.
   ZenModeMac/    `swift run` host for ZenMacApp.
+  ZenPhoneApp/   the iPhone app as a library: sign-in, the live score, approving a Mac.
 Apps/            the Xcode project: the signed Mac and iPhone app targets, entitlements, Info.plists.
 Tests/AlbeitTests/
 Packages/ZenShared/  the shared, UI-free package (macOS, iOS and Linux)
@@ -100,9 +101,13 @@ ZenMacApp ──▶ Packages/ZenShared ◀── ZenCorePrivate (private repo, o
 - `ZenCorePrivate` depends only on `Packages/ZenShared` (ZenAPI for the contract, ZenLogic for the same
   combine the server runs), never on the root package, so there is no cycle.
 - The root `Package.swift` links `ZenCorePrivate` when the private repo is cloned beside this one, at
-  `../googlebthon-zenmodeos-private` (its root `Package.swift`). The app picks it in `Services.swift` with
-  `#if canImport(ZenCorePrivate)`, and falls back to the ZenMock fakes otherwise (every surface then
-  says **Demo data**). `ZEN_USE_MOCK=1` forces the fakes; on Linux the root always uses them.
+  `../googlebthon-zenmodeos-private` (its root `Package.swift`), into ZenMacApp and ZenPhoneApp. Nothing
+  under `Sources/` imports it: each app target picks the backend in its one wiring file
+  (`Apps/Mac/Sources/ZenModeOSMacApp.swift`, `Apps/iPhone/Sources/ZenModeOSiPhoneApp.swift`) with
+  `#if canImport(ZenCorePrivate)`, and falls back to the ZenMock fakes otherwise (`ZenMacBackend` /
+  `ZenPhoneBackend`). `ZEN_USE_MOCK=1` forces the fakes; on Linux the root always uses them. Surfaces
+  still drawn from demo data (day history, the weekly review, circle patterns, integrations) say
+  **Demo data** on either backend.
 - Nothing here imports a backend SDK or names the backend's storage, and the guardrails below
   enforce that on every commit.
 

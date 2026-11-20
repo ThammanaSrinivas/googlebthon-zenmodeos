@@ -28,9 +28,11 @@ let swift6: [SwiftSetting] = [.swiftLanguageMode(.v6)]
 func shared(_ product: String) -> Target.Dependency { .product(name: product, package: "ZenShared") }
 
 var appDependencies: [Target.Dependency] = ["Albeit", shared("ZenAPI"), shared("ZenLogic"), shared("ZenMock"), shared("MacUsage")]
+var phoneDependencies: [Target.Dependency] = ["Albeit", shared("ZenAPI"), shared("ZenLogic"), shared("ZenMock")]
 var packageDependencies: [Package.Dependency] = [.package(path: "Packages/ZenShared")]
 if usePrivate {
     appDependencies.append(.product(name: "ZenCorePrivate", package: "googlebthon-zenmodeos-private"))
+    phoneDependencies.append(.product(name: "ZenCorePrivate", package: "googlebthon-zenmodeos-private"))
     packageDependencies.append(.package(path: privateDir))
 }
 
@@ -43,6 +45,9 @@ let package = Package(
         // ZenAPI and ZenMock come from Packages/ZenShared (the Xcode project references it too).
         .library(name: "ZenMacApp", targets: ["ZenMacApp"]),
         .executable(name: "ZenModeMac", targets: ["ZenModeMac"]),
+        // The iPhone app as a library, hosted by the Xcode iPhone target. It carries the private
+        // backend the same way ZenMacApp does, so the public Xcode project never names it.
+        .library(name: "ZenPhoneApp", targets: ["ZenPhoneApp"]),
     ],
     dependencies: packageDependencies,
     targets: [
@@ -52,6 +57,8 @@ let package = Package(
         .target(name: "ZenMacApp", dependencies: appDependencies, swiftSettings: swift6),
         // `swift run ZenModeMac`: unsigned, for fast local runs and the snapshot tour.
         .executableTarget(name: "ZenModeMac", dependencies: ["ZenMacApp"], swiftSettings: swift6),
+        // The iPhone app: sign-in, the live score, approving a Mac.
+        .target(name: "ZenPhoneApp", dependencies: phoneDependencies, swiftSettings: swift6),
         .testTarget(name: "AlbeitTests", dependencies: ["Albeit"], swiftSettings: swift6),
     ]
 )

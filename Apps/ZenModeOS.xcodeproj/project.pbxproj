@@ -11,6 +11,7 @@
 		AB1000000000000000000420 /* Albeit in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000320 /* Albeit */; };
 		AB1000000000000000000421 /* ZenAPI in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000321 /* ZenAPI */; };
 		AB1000000000000000000422 /* ZenMock in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000322 /* ZenMock */; };
+		AB1000000000000000000423 /* ZenPhoneApp in Frameworks */ = {isa = PBXBuildFile; productRef = AB1000000000000000000323 /* ZenPhoneApp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 				AB1000000000000000000420 /* Albeit in Frameworks */,
 				AB1000000000000000000421 /* ZenAPI in Frameworks */,
 				AB1000000000000000000422 /* ZenMock in Frameworks */,
+				AB1000000000000000000423 /* ZenPhoneApp in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -153,6 +155,7 @@
 				AB1000000000000000000320 /* Albeit */,
 				AB1000000000000000000321 /* ZenAPI */,
 				AB1000000000000000000322 /* ZenMock */,
+				AB1000000000000000000323 /* ZenPhoneApp */,
 			);
 			productName = ZenModeOSiPhone;
 			productReference = AB1000000000000000000021 /* ZenModeOS.app */;
@@ -464,6 +467,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AB1000000000000000000301 /* XCLocalSwiftPackageReference "../Packages/ZenShared" */;
 			productName = ZenMock;
+		};
+		AB1000000000000000000323 /* ZenPhoneApp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ZenPhoneApp;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
