@@ -132,12 +132,21 @@ struct TodayShareImage: View {
                     }
                 }
                 .padding(.top, 34)
-                Text(UsualStatsCard.streakLine(week)).font(ZenFont.text(16, .semibold)).foregroundStyle(Color.zen.textHeading).padding(.top, 14)
+                Text(Self.streakLine(week)).font(ZenFont.text(16, .semibold)).foregroundStyle(Color.zen.textHeading).padding(.top, 14)
                 Spacer()
                 ZenoStill(week.isWon ? .proud : .happy).frame(width: 96)
             }
             .padding(.vertical, 44)
         }
         .frame(width: 540, height: 675)
+    }
+}
+
+extension TodayShareImage {
+    /// "9-week streak · one more wins it", or "Week won · 10-week streak".
+    static func streakLine(_ week: WeekProgress) -> String {
+        if week.isWon { return "Week won · \(week.weeklyStreak)-week streak" }
+        let left = WeekProgress.goodDaysToWin - week.goodDays
+        return "\(week.streakBefore)-week streak · " + (left == 1 ? "one more wins it" : "\(left) more win it")
     }
 }
