@@ -185,18 +185,35 @@ extension AppModel {
     /// that Zeno is listening, then Zeno's words as they come.
     func talkToZeno() {
         guard let voice else { return }
-        if [.connecting, .listening, .thinking, .speaking].contains(voice.state) {
+        if Self.isLive(voice.state) {
             Task { await voice.stop() }
             return
         }
-        wake.stop()
         notch.speak(.init(feeling: .curious, kicker: "Zeno · listening", line: "I'm listening."), hold: nil, respectQuiet: false)
         Task {
-            await voice.start(pickup: false)
+            await startVoice(voice, pickup: false)
             await mirrorVoiceInNotch(voice)
-            if wakeWordOn { try? await Task.sleep(for: .seconds(1)); await wake.start() }
         }
     }
+
+    /// Every way into a chat with Zeno (⌃⌥Z, "Hey Zeno", Settings › Zeno's Try it here) starts here.
+    /// "Hey Zeno" lets go of the mic first, so the chat's mic can open with echo cancellation, and
+    /// takes it back a second after the chat ends.
+    func startVoice(_ voice: VoiceModel, pickup: Bool) async {
+        wake.stop()
+        await voice.start(pickup: pickup)
+        Task { [weak self] in
+            while !Task.isCancelled, Self.isLive(voice.state) {
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            try? await Task.sleep(for: .seconds(1))
+            guard let self, self.wakeWordOn, !Self.isLive(voice.state) else { return }
+            await self.wake.start()
+        }
+    }
+
+    /// A chat is open (connecting, or talking either way).
+    nonisolated static func isLive(_ state: VoiceState) -> Bool { [.connecting, .listening, .thinking, .speaking].contains(state) }
 
     /// Zeno's latest words in the notch while the session runs; a calm line when it can't connect.
     private func mirrorVoiceInNotch(_ voice: VoiceModel) async {

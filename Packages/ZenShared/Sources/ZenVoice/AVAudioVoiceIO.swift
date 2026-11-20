@@ -9,12 +9,19 @@ import Foundation
 /// The app asks for the mic first (`AVAudioApplication.requestRecordPermission()`), with
 /// NSMicrophoneUsageDescription in Info.plist; on the Mac, the hardened runtime also needs the
 /// audio-input entitlement. `start` throws when the mic can't open.
+///
+/// Every session gets a fresh engine and player: one start that failed half way (player attached,
+/// voice processing switched on) used to leave the shared engine broken, so every later session
+/// said "the mic is off" until the app restarted. And when the Mac refuses voice processing (another
+/// engine already on the input, some devices), the mic opens without it rather than not at all.
 public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
-    private let engine = AVAudioEngine()
-    private let player = AVAudioPlayerNode()
+    private var engine = AVAudioEngine()
+    private var player = AVAudioPlayerNode()
     private let lock = NSLock()
     private var running = false
     private var playbackFormat: AVAudioFormat
+    /// False when this session's mic opened without echo cancellation.
+    public private(set) var echoCancelling = false
 
     public init() {
         playbackFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: PCM.outputRate, channels: 1,
@@ -32,8 +39,29 @@ public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
         try audioSession.setActive(true)
         #endif
 
+        do {
+            try open(voiceProcessing: true, onChunk: onChunk)
+            echoCancelling = true
+        } catch {
+            Self.log("voice processing refused (\(error)); opening the mic without it")
+            do {
+                try open(voiceProcessing: false, onChunk: onChunk)
+                echoCancelling = false
+            } catch {
+                Self.log("the mic didn't open: \(error)")
+                throw error
+            }
+        }
+        player.play()
+        running = true
+    }
+
+    /// One attempt on a fresh engine and player; on failure nothing is left running.
+    private func open(voiceProcessing: Bool, onChunk: @escaping @Sendable (MicChunk) -> Void) throws {
+        engine = AVAudioEngine()
+        player = AVAudioPlayerNode()
         let input = engine.inputNode
-        try input.setVoiceProcessingEnabled(true)
+        if voiceProcessing { try input.setVoiceProcessingEnabled(true) }
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
             throw VoiceIOError.noMicrophone
@@ -52,10 +80,16 @@ public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
+            engine.stop()
             throw error
         }
-        player.play()
-        running = true
+    }
+
+    /// Debug builds: why the mic did or didn't open, on stderr.
+    private static func log(_ line: String) {
+        #if DEBUG
+        FileHandle.standardError.write(Data(("[voice] " + line + "\n").utf8))
+        #endif
     }
 
     public func play(_ pcm: Data, sampleRate: Int) {

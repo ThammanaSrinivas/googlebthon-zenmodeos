@@ -109,4 +109,19 @@ struct SignInRoleCopyTests {
         #expect(Copy.Handoff.adminReady("Payments").contains("5 or more"))
         #expect(Copy.Handoff.createTitle == "Create your team on the web")
     }
+
+    @Test("A mic that didn't open says why: the setting when it's off, a retry otherwise")
+    func micDidNotOpen() {
+        let off = VoiceCopy.micDidNotOpen(.denied)
+        #expect(off.contains("System Settings › Privacy & Security › Microphone") && usesFullBrandName(off))
+        let other = VoiceCopy.micDidNotOpen(.granted)
+        #expect(other.contains("try again") && !other.contains("System Settings"))
+        #expect(VoiceCopy.micDidNotOpen(.undetermined) == other)
+    }
+
+    @Test("A chat counts as live from connecting until it ends, so Hey Zeno waits for it")
+    func voiceIsLive() {
+        #expect(AppModel.isLive(.connecting) && AppModel.isLive(.listening) && AppModel.isLive(.thinking) && AppModel.isLive(.speaking))
+        #expect(!AppModel.isLive(.idle) && !AppModel.isLive(.ended) && !AppModel.isLive(.error))
+    }
 }

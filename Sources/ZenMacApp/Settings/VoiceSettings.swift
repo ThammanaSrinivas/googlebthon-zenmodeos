@@ -53,6 +53,13 @@ enum VoiceCopy {
     static let stop = "End"
     static let typePrompt = "Or type to Zeno"
     static let voiceOff = "Turn Zeno's voice on to try it."
+
+    /// The chat is up but the mic didn't open: say why, never just "the mic is off".
+    static func micDidNotOpen(_ access: MicAccess.State) -> String {
+        access == .denied
+            ? "The mic is off for ZenMode OS. Turn it on in System Settings › Privacy & Security › Microphone, or type to Zeno."
+            : "The mic didn't open. End and try again, or type to Zeno."
+    }
 }
 
 /// Settings › Voice, on the left of the page.
@@ -324,7 +331,7 @@ struct TalkToZenoPanel: View {
             HStack(spacing: ZenSpace.s3) {
                 ZenoView(feeling(voice.state)).frame(width: 64)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(stateLabel(voice.state).uppercased()).font(ZenFont.number(10)).tracking(1)
+                    Text(label(voice).uppercased()).font(ZenFont.number(10)).tracking(1)
                         .foregroundStyle(Color.zen.brandSoft)
                     if let caption = voice.caption {
                         Text(caption).font(ZenFont.text(12.5)).foregroundStyle(Color.zen.islandDetail)
@@ -365,7 +372,7 @@ struct TalkToZenoPanel: View {
         .environment(\.colorScheme, .dark)
         .animation(ZenMotion.container, value: voice.lines.count)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Zeno, \(stateLabel(voice.state))")
+        .accessibilityLabel("Zeno, \(label(voice))")
     }
 
     private func controls(_ voice: VoiceModel) -> some View {
@@ -406,7 +413,7 @@ struct TalkToZenoPanel: View {
                                                 : values.language.speechCode
             speaker.say(line.text, language: code, values: values, volume: verdict.volume)
         }
-        await voice.start(pickup: false)
+        await model.startVoice(voice, pickup: false)
     }
 
     private func send(_ voice: VoiceModel) {
@@ -425,6 +432,11 @@ struct TalkToZenoPanel: View {
         }
     }
 
+    /// Never "Listening" to a mic that didn't open: the chat is up for typing only.
+    private func label(_ voice: VoiceModel) -> String {
+        voice.error == .disabled && voice.state == .listening ? "Typing" : stateLabel(voice.state)
+    }
+
     private func stateLabel(_ s: VoiceState) -> String {
         switch s {
         case .idle: "Ready"
@@ -441,7 +453,7 @@ struct TalkToZenoPanel: View {
         switch e {
         case .signedOut: "Sign in to talk to Zeno."
         case .offline: "Offline. Zeno's back when you are."
-        case .disabled: "The mic is off. You can still type to Zeno."
+        case .disabled: VoiceCopy.micDidNotOpen(MicAccess.state)
         case .rateLimited: "Lots of chats just now. Try again in a minute."
         default: "Zeno couldn't answer just now. Try again."
         }

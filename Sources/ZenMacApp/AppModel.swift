@@ -80,7 +80,7 @@ final class AppModel {
         if ProcessInfo.processInfo.environment["ZEN_VOICE_TRY"] == "1" {
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(8))
-                await self?.voice?.start(pickup: true)
+                if let self, let voice = self.voice { await self.startVoice(voice, pickup: true) }
             }
         }
         #endif
