@@ -1,6 +1,7 @@
 import SwiftUI
 import Albeit
 import ZenAPI
+import ZenFocus
 
 /// ⌘K: one centred place to find anything and go there. Sections, your pattern cards, kinds of app,
 /// Zeno's lines and a few actions, narrowed by a row of tags. ↑ ↓ move, ↩ opens, esc closes.
@@ -156,7 +157,16 @@ struct CommandPalette: View {
 
     // MARK: What there is to find
 
-    private var results: [Item] { Self.filter(everything, query: query, tag: tag) }
+    private var results: [Item] {
+        // "Zeno, focus 40 min" typed here starts that block.
+        if let command = FocusCommand.parse(query), !model.focus.isFocusing {
+            let source: FocusSource = query.lowercased().hasPrefix("zeno") ? .voice : .manual
+            return [Item(id: "act-focus-typed", symbol: "moon.fill", title: command.label, detail: "Focus Mode", tag: .actions) {
+                model.startFocus(until: command.until(from: Date()), source: source)
+            }]
+        }
+        return Self.filter(everything, query: query, tag: tag)
+    }
 
     /// What the palette shows: items under the tag (all of them for All) whose title or detail holds
     /// the query, case-insensitively, in the order given. An empty query keeps everything under the tag.
@@ -196,6 +206,25 @@ struct CommandPalette: View {
             }
         }
         let dark = model.preferences.values.appearance == .dark
+        if model.focus.isFocusing {
+            items.append(Item(id: "act-focus-end", symbol: "moon", title: "End focus", detail: model.focus.untilText ?? "Focus Mode", tag: .actions) {
+                model.focus.requestEnd()
+            })
+        } else {
+            items += FocusModel.lengths.map { m in
+                Item(id: "act-focus-\(m)", symbol: "moon.fill", title: "Focus \(m) min", detail: "Focus Mode · or type “focus 40”", tag: .actions) {
+                    model.startFocus(minutes: m)
+                }
+            }
+        }
+        items += [
+            Item(id: "act-plan", symbol: "list.bullet.clipboard", title: "Plan my day", detail: "Zeno · your calendar and tasks", tag: .actions) {
+                Task { await model.planMyDay() }
+            },
+            Item(id: "act-wrap", symbol: "moon.stars", title: "Wrap up", detail: "Zeno · done, open, tomorrow", tag: .actions) {
+                Task { await model.wrapUpDay() }
+            },
+        ]
         items += [
             Item(id: "act-ask", symbol: "sparkle", title: "Ask Zeno", detail: "A fresh line in the notch", tag: .actions) {
                 Task { await model.refreshNudge(trigger: .checkIn) }

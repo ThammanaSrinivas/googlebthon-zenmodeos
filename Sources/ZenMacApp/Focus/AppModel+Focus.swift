@@ -23,6 +23,7 @@ extension AppModel {
         }
         focus.configure(sync: { svc.focus })
         afterHours.onWorkEnded = { [weak self] in self?.workDayEnded() }
+        followVoiceFocus()
         afterHours.start(focus: focus, sync: { svc.focus })
         #if DEBUG
         // Functional tests: ZEN_FOCUS_MINUTES=1 starts a block at launch; ZEN_FOCUS_END_AFTER=20 ends
@@ -45,6 +46,22 @@ extension AppModel {
             }
         }
         #endif
+    }
+
+    /// "Zeno, focus 25 minutes" by voice: Zeno's start_focus becomes a Focus Mode block (source voice).
+    func followVoiceFocus() {
+        Task { [weak self] in
+            var seen: String?
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self else { return }
+                guard let f = voice?.activeFocus, f.id != seen else { continue }
+                seen = f.id
+                if !focus.isFocusing, f.endsAt > Date().addingTimeInterval(90) {
+                    startFocus(until: f.endsAt, source: .voice)
+                }
+            }
+        }
     }
 
     func startFocus(minutes: Int, source: FocusSource = .manual) {
