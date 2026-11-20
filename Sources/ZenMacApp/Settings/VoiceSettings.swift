@@ -45,7 +45,10 @@ enum VoiceCopy {
     static let verdictHeadphonesOn = "Zeno would speak in your headphones."
     static let sampleLine = "Hi, I'm Zeno. What are you here for?"
     static let tryTitle = "Talk to Zeno"
-    static let tryCaption = "Try it here. On the notch, a tap does the same."
+    static let tryCaption = "Try it here, or press ⌃⌥Z in any app to talk to Zeno in the notch."
+    static let wakeTitle = "Listen for “Hey Zeno”"
+    static let wakeBody = "Say “Hey Zeno” to start, hands free. Heard on this Mac only; nothing leaves it or is kept."
+    static let wakeNeedsPermission = "Allow the microphone and speech recognition in System Settings › Privacy."
     static let start = "Talk to Zeno"
     static let stop = "End"
     static let typePrompt = "Or type to Zeno"
@@ -295,6 +298,15 @@ struct TalkToZenoPanel: View {
                 Button(VoiceCopy.master) { prefs.values.enabled = true }.buttonStyle(ZenLinkButtonStyle())
             }
             Text(VoiceCopy.tryCaption).zenType(.caption).foregroundStyle(Color.zen.textCaption)
+            Divider().opacity(0.3)
+            Toggle(isOn: Binding(get: { model.wakeWordOn }, set: { model.setWakeWord($0) })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(VoiceCopy.wakeTitle).font(ZenFont.text(13.5, .semibold)).foregroundStyle(Color.zen.textHeading)
+                    Text(model.wake.state == .needsPermission ? VoiceCopy.wakeNeedsPermission : VoiceCopy.wakeBody)
+                        .zenType(.caption).foregroundStyle(Color.zen.textCaption).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch).controlSize(.small)
         }
         .padding(ZenSpace.s5)
         .glassCard(radius: ZenRadius.widget)

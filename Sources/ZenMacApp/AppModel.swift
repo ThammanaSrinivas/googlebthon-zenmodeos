@@ -59,6 +59,16 @@ final class AppModel {
         startFocusMode()
         Task { await admin.refreshTeam(services.admin) }
         makeVoice()
+        startTalkShortcuts()
+        #if DEBUG
+        // Functional test: ZEN_VOICE_TRY=1 opens a voice session a few seconds after launch.
+        if ProcessInfo.processInfo.environment["ZEN_VOICE_TRY"] == "1" {
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(8))
+                await self?.voice?.start(pickup: true)
+            }
+        }
+        #endif
         AppNap.holdOff()
         frontmost.start()
         Task {
@@ -308,6 +318,11 @@ final class AppModel {
     let team = TeamModel()
     /// The team admin's view; its section shows only when this person administers a team.
     let admin = AdminModel()
+    /// ⌃⌥Z from anywhere, and "Hey Zeno" (on-device, opt-in): talk to Zeno in the notch.
+    let hotKey = TalkHotKey()
+    let wake = WakeWordListener()
+    /// "Hey Zeno" is on (off until the person turns it on).
+    var wakeWordOn = false
     /// Opens Integrations on this tab (a card's "Set up hooks").
     var integrationsTab: IntegrationsSection.Tab?
 
@@ -318,6 +333,7 @@ final class AppModel {
         focus = FocusModel(defaults: defaults)
         afterHours = AfterHoursGuard(defaults: defaults)
         dayPlan = DayPlanModel(defaults: defaults)
+        wakeWordOn = defaults.bool(forKey: Self.wakeWordKey)
         goldLedger = GoldLedger(defaults: defaults)
         voiceLedger = OnDeviceLedger(store: ZenVoice.UserDefaultsKeyValueStore(defaults))
     }

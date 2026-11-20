@@ -173,12 +173,20 @@ public final class VoiceModel {
         // After each wait, carry on only if this is still the session: `stop()` may have ended it
         // meanwhile, and then there is no error to show and no mic to open.
         let token: LiveToken
-        do { token = try await tokens.liveToken() } catch { return failUnlessStopped(session, error) }
+        do { token = try await tokens.liveToken() } catch {
+            Self.debugLog("token failed: \(error)")
+            return failUnlessStopped(session, error)
+        }
+        Self.debugLog("token ok model=\(token.model) voice=\(token.voice) connectBy=\(token.connectBy)")
         guard self.session === session else { return }
         // The pickup is counted before connecting: the scripted replay starts playing as soon as
         // the setup is accepted, and its first intent must find the pickup already there.
         if pickup { await ledger.recordPickup() }
-        do { try await session.connect(token: token) } catch { return failUnlessStopped(session, error) }
+        do { try await session.connect(token: token) } catch {
+            Self.debugLog("connect failed: \(error)")
+            return failUnlessStopped(session, error)
+        }
+        Self.debugLog("connected")
         guard self.session === session else { return }
 
         if pickup { await session.sendText(ZenoAgent.pickupCue) }
@@ -220,6 +228,13 @@ public final class VoiceModel {
             continuation.finish()
             self.error = .disabled // the mic was refused; typed turns still work
         }
+    }
+
+    /// Debug builds: each step of starting a voice session, on stderr.
+    static func debugLog(_ line: String) {
+        #if DEBUG
+        FileHandle.standardError.write(Data(("[voice] " + line + "\n").utf8))
+        #endif
     }
 
     private func failUnlessStopped(_ attempt: ZenoSession, _ error: VoiceError) {

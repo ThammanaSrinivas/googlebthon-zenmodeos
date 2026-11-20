@@ -32,6 +32,10 @@ public actor URLSessionLiveTransport: LiveTransport {
             }
         } catch {
             // A close from either side ends the stream; anything else is a dropped connection.
+            #if DEBUG
+            let reason = task.closeReason.map { String(decoding: $0, as: UTF8.self) } ?? ""
+            FileHandle.standardError.write(Data("[voice] socket closed code=\(task.closeCode.rawValue) reason=\(reason) error=\(error)\n".utf8))
+            #endif
             if task.closeCode != .invalid || self.task !== task { return nil }
             throw error
         }
