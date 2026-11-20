@@ -98,9 +98,10 @@ struct OnboardingFlowTests {
         #expect(await eventually { m.notch.moment.line == "Got it. Nights only." })
     }
 
-    @Test("Bring your day: the Mac shows a fresh pairing code and waits")
+    @Test("Bring your day (QR pairing on): the Mac shows a fresh pairing code and waits")
     func bring() async {
         let m = appModel()
+        m.qrPairing = true
         m.go(.bring)
         #expect(m.pairState == .waiting)
         #expect(await eventually { m.pairing != nil })
@@ -113,7 +114,7 @@ struct OnboardingFlowTests {
     func appleWithoutToken() {
         let m = appModel()
         m.signInWithApple(identityToken: nil, fullName: nil)
-        #expect(m.pairState == .failed(Copy.Bring.appleFailed))
+        #expect(m.pairState == .failed(AppModel.qrPairingEnabled ? Copy.Bring.appleFailed : Copy.Bring.appleFailedNoCode))
         #expect(m.user == nil)
     }
 

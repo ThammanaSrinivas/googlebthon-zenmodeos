@@ -186,7 +186,9 @@ struct CircleTests {
     @Test("The sidebar's sections each have their own name and symbol")
     func sections() {
         let all = TodayView.Section.allCases
-        #expect(all.count == 7)
+        #expect(all.count == 8)
+        // Team admin shows only for the team's admin.
+        #expect(TodayView.Section.visible(isAdmin: false).count == 7)
         #expect(Set(all.map(\.rawValue)).count == all.count && Set(all.map(\.symbol)).count == all.count)
         #expect(all.first == .today)
     }

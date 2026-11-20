@@ -114,6 +114,11 @@ enum Copy {
         static let rotates = "This code changes every 5 minutes and works once."
         static let expired = "That code just changed."
         static let appleFailed = "Sign in with Apple didn't finish. Try again, or scan the code instead."
+        static let appleFailedNoCode = "Sign in with Apple didn't finish. Try again."
+        // Without the QR pairing (the demo build): a plain sign-in.
+        static let signInTitle = "Sign in."
+        static let signInBody = "One account on every screen. Your Zen Score shows the same on your iPhone and this Mac."
+        static let signInCard = "Only your Zen Score ever leaves your iPhone."
     }
 
     enum Handoff {

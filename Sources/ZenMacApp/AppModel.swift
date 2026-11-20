@@ -39,6 +39,16 @@ final class AppModel {
     let frontmost = FrontmostTracker()
     /// The fakes until launch, then whatever the app target chose (`ZenMacBackend`).
     private(set) var services: Services = .fakes()
+
+    /// The QR pairing on "Bring your day" (the iPhone scans, approves, the Mac signs in). Off for
+    /// the buildathon demo build: the step is a plain sign-in. Flip to true to bring it back; the
+    /// pairing flow, the QR and the iPhone's approve screen are all still here.
+    static let qrPairingEnabled = false
+    /// This model's switch (tests turn it on); starts as `qrPairingEnabled`.
+    var qrPairing = AppModel.qrPairingEnabled
+
+    /// Tests: run this model on given services.
+    func use(_ services: Services) { self.services = services }
     var isDemo: Bool { services.isDemo }
 
     private var pairTask: Task<Void, Never>?
@@ -71,7 +81,7 @@ final class AppModel {
 
     func go(_ step: Step) {
         withAnimation(ZenMotion.container) { stage = .onboarding(step) }
-        if step == .bring { startPairing() }
+        if step == .bring && qrPairing { startPairing() }
         if step == .count { startPermissionPolling() }
         if step == .handoff { playHandoff() }
     }
@@ -202,7 +212,7 @@ final class AppModel {
 
     func signInWithApple(identityToken: Data?, fullName: PersonNameComponents?) {
         guard let identityToken, let token = String(data: identityToken, encoding: .utf8) else {
-            pairState = .failed(Copy.Bring.appleFailed)
+            pairState = .failed(qrPairing ? Copy.Bring.appleFailed : Copy.Bring.appleFailedNoCode)
             return
         }
         pairTask?.cancel()
@@ -210,7 +220,7 @@ final class AppModel {
         let nonce = appleNonce.raw
         Task {
             do { paired(try await services.auth.signInWithApple(identityToken: token, rawNonce: nonce, fullName: fullName)) }
-            catch { pairState = .failed(Copy.Bring.appleFailed) }
+            catch { pairState = .failed(qrPairing ? Copy.Bring.appleFailed : Copy.Bring.appleFailedNoCode) }
         }
     }
 

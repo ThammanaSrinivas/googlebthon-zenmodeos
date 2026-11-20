@@ -482,7 +482,13 @@ struct PairStage: View {
 
     var body: some View {
         VStack(spacing: ZenSpace.s5) {
-            if let pairing = model.pairing {
+            if !model.qrPairing {
+                // The demo build: no code to scan, just who you are on every screen.
+                ZenMark().fill(Color.zen.textHeading, style: FillStyle(eoFill: true)).frame(width: 56, height: 56)
+                    .accessibilityHidden(true)
+                Text(Copy.Bring.signInCard).zenType(.body).foregroundStyle(Color.zen.textBody)
+                    .multilineTextAlignment(.center)
+            } else if let pairing = model.pairing {
                 QRCode(text: pairing.url.absoluteString)
                     .frame(width: 196, height: 196)
                     .padding(ZenSpace.s4)

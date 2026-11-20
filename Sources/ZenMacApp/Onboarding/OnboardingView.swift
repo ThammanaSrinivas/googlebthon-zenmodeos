@@ -391,7 +391,9 @@ private struct BringColumn: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ZenSpace.s5) {
-            QuestionHeader(eyebrow: Copy.Bring.eyebrow, title: Copy.Bring.title, body_: Copy.Bring.body)
+            QuestionHeader(eyebrow: Copy.Bring.eyebrow,
+                           title: model.qrPairing ? Copy.Bring.title : Copy.Bring.signInTitle,
+                           body_: model.qrPairing ? Copy.Bring.body : Copy.Bring.signInBody)
             VStack(alignment: .leading, spacing: ZenSpace.s3) {
                 SignInWithAppleButton(.signIn) { request in
                     request.requestedScopes = [.fullName]
