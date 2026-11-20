@@ -84,7 +84,7 @@ public struct FakeTeam: TeamService {
     }
 
     public func focusReportLink(isoWeek: String, showName: Bool) async throws(TeamError) -> FocusReportLink {
-        FocusReportLink(url: TeamWeb.base.appending(path: "r").appending(path: "demo"), expiresAt: Date().addingTimeInterval(30 * 86_400))
+        FocusReportLink(url: URL(string: "https://example.com/r/demo")!, expiresAt: Date().addingTimeInterval(30 * 86_400))
     }
 
     public func claimGold(cohortId: String, isoWeek: String) async throws(TeamError) -> Int { 250 }

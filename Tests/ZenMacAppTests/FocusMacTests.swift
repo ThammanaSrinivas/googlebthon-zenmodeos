@@ -21,7 +21,7 @@ final class CannedSlack: HTTPSending, @unchecked Sendable {
         case "search.messages": #"{"ok":true,"messages":{"matches":[{"ts":"1795150000.0001","user":"UR","text":"review?","channel":{"id":"C1"}}]}}"#
         case "conversations.list": #"{"ok":true,"channels":[{"id":"D1"}]}"#
         case "conversations.history": #"{"ok":true,"messages":[{"ts":"1795151000.0002","user":"UP","text":"lunch?"}]}"#
-        case "users.info": #"{"ok":true,"user":{"name":"x","profile":{"display_name":"Ravi"}}}"#
+        case "users.info": #"{"ok":true,"user":{"name":"x","profile":{"real_name":"Ravi"}}}"#
         default: #"{"ok":true}"#
         }
         return (200, Data(body.utf8))

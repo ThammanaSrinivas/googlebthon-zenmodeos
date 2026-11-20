@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import ZenAPI
 import ZenMacApp
 #if canImport(ZenCorePrivate)
     import ZenCorePrivate
@@ -23,6 +24,7 @@ struct ZenModeOSMacApp: App {
         #if canImport(ZenCorePrivate)
         if ProcessInfo.processInfo.environment["ZEN_USE_MOCK"] == nil, ZenCorePrivate.hasFirebaseConfig {
             let live = ZenCorePrivate.services()
+            TeamWeb.base = ZenCorePrivate.webBase
             return Services(auth: live.auth, nudges: live.nudges, cohorts: live.cohorts,
                             scores: live.scores, days: live.days,
                             voiceTokens: live.voiceTokens, cards: live.cards,

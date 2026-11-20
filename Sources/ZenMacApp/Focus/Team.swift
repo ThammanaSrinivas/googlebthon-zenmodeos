@@ -104,7 +104,9 @@ struct TeamCard: View {
                 Eyebrow(t.team.map { "Your team · \($0.name)" } ?? "Your team", color: Color.zen.textBrand)
                 if model.isDemo { DemoTag() }
                 Spacer(minLength: 0)
-                Button("What my admin sees") { NSWorkspace.shared.open(TeamWeb.privacy) }.buttonStyle(ZenLinkButtonStyle())
+                if let privacy = TeamWeb.privacy {
+                    Button("What my admin sees") { NSWorkspace.shared.open(privacy) }.buttonStyle(ZenLinkButtonStyle())
+                }
             }
             switch t.load {
             case .idle, .loading:

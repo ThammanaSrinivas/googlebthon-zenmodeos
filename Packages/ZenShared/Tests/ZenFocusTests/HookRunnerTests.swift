@@ -13,11 +13,14 @@ final class FakeHook: FocusHook, @unchecked Sendable {
     private let lock = NSLock()
     private var _calls: [String] = []
     var calls: [String] { lock.withLock { _calls } }
+    /// Shared by hooks in one test: how many were inside a call at once, at most.
+    let gauge: Gauge?
 
-    init(_ id: String, _ mode: Mode = .works, end: Mode? = nil) {
+    init(_ id: String, _ mode: Mode = .works, end: Mode? = nil, gauge: Gauge? = nil) {
         self.id = id
         self.mode = mode
         self.endMode = end ?? mode
+        self.gauge = gauge
     }
 
     func status() async -> HookStatus {
@@ -39,13 +42,30 @@ final class FakeHook: FocusHook, @unchecked Sendable {
     }
 
     private func act(_ m: Mode) async throws {
+        gauge?.enter()
+        defer { gauge?.leave() }
         switch m {
         case .throwsError: throw HookFailure("boom")
         case .hangs: try await Task.sleep(for: .seconds(30))
-        case .hangsIgnoringCancel: usleep(1_000_000)
+        // Ignores cancellation without holding a thread of the shared pool (a blocking sleep
+        // would starve every other test on a small CI runner).
+        case .hangsIgnoringCancel:
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                DispatchQueue.global().asyncAfter(deadline: .now() + 2) { c.resume() }
+            }
         default: break
         }
     }
+}
+
+/// Counts calls in flight.
+final class Gauge: @unchecked Sendable {
+    private let lock = NSLock()
+    private var now = 0
+    private var _peak = 0
+    var peak: Int { lock.withLock { _peak } }
+    func enter() { lock.withLock { now += 1; _peak = max(_peak, now) } }
+    func leave() { lock.withLock { now -= 1 } }
 }
 
 let t0 = Date(timeIntervalSince1970: 1_763_600_000)
@@ -59,12 +79,11 @@ struct HookRunnerTests {
 
     @Test("Every ready hook starts, in parallel, and outcomes keep the hooks' order")
     func parallel() async {
-        let hooks = (0..<4).map { FakeHook("h\($0)", .hangs) }
-        let clock = ContinuousClock()
-        let start = clock.now
-        let out = await fast.start(session(), hooks: hooks)
-        // Four hooks that each hang hit their deadlines together, not one after another.
-        #expect(clock.now - start < .milliseconds(450))
+        let gauge = Gauge()
+        let hooks = (0..<4).map { FakeHook("h\($0)", .hangs, gauge: gauge) }
+        let out = await HookRunner(timeout: .seconds(1)).start(session(), hooks: hooks)
+        // All four were inside their calls at the same time: they ran together, not in turn.
+        #expect(gauge.peak == 4)
         #expect(out.map(\.id) == ["h0", "h1", "h2", "h3"])
         #expect(out.allSatisfy { $0.state == .failed })
     }
@@ -92,7 +111,8 @@ struct HookRunnerTests {
         let clock = ContinuousClock()
         let start = clock.now
         let out = await fast.start(session(), hooks: [FakeHook("stuck", .hangsIgnoringCancel)])
-        #expect(clock.now - start < .milliseconds(700))
+        // The hook holds on for 2 s; the runner answers at its deadline, well before.
+        #expect(clock.now - start < .milliseconds(1500))
         #expect(out.first?.state == .failed)
         #expect(out.first?.note == "Took too long")
     }

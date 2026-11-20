@@ -43,7 +43,7 @@ public struct FocusBlock: Codable, Equatable, Hashable, Sendable, Identifiable {
     }
 }
 
-/// A finished block, as `users/{uid}/focus_sessions/{id}` holds it.
+/// A finished block, as the backend keeps it (one record per block).
 public struct FocusRecord: Codable, Equatable, Sendable {
     public let session: FocusBlock
     public let endAt: Date
@@ -63,7 +63,7 @@ public struct FocusRecord: Codable, Equatable, Sendable {
     public var focusedMin: Int { min(max(Int((endAt.timeIntervalSince(session.startAt) / 60).rounded()), 0), 1440) }
 }
 
-/// `users/{uid}/live/focus`: what the iPhone's Island shows.
+/// The person's live focus state: what the iPhone's Island shows.
 public struct LiveFocus: Equatable, Sendable {
     public let active: Bool
     public let until: Date?
@@ -82,7 +82,7 @@ public struct LiveFocus: Equatable, Sendable {
     }
 }
 
-/// `users/{uid}/daily/{yyyy-MM-dd}`: the Mac's day of focus. No other key, ever (no app names).
+/// The Mac's day of focus, one per local day. No other value, ever (no app names).
 public struct DailyFocus: Codable, Equatable, Sendable {
     public var focusMin: Int
     public var blocksStarted: Int
@@ -108,7 +108,7 @@ public struct DailyFocus: Codable, Equatable, Sendable {
     }
 }
 
-/// `users/{uid}/settings/work_hours`. Days are 1 = Monday … 7 = Sunday.
+/// The person's work hours. Days are 1 = Monday … 7 = Sunday.
 public struct WorkHours: Codable, Equatable, Sendable {
     /// "HH:mm", 24-hour.
     public var start: String
@@ -347,10 +347,11 @@ public protocol TeamService: Sendable {
     func claimGold(cohortId: String, isoWeek: String) async throws(TeamError) -> Int
 }
 
-/// The team web pages (Firebase Hosting). The apps only open these.
+/// The team web pages. The apps only open these. Their address belongs to the backend: the app
+/// target sets `base` at launch from the private package; with the fakes there are none.
 public enum TeamWeb {
-    public static let base = URL(string: "https://zenmodeos-buildathon.web.app")!
-    public static var privacy: URL { base.appending(path: "privacy") }
-    public static func join(token: String) -> URL { base.appending(path: "join").appending(path: token) }
-    public static func challenge(_ id: String) -> URL { base.appending(path: "challenge").appending(path: id) }
+    nonisolated(unsafe) public static var base: URL?
+    public static var privacy: URL? { base?.appending(path: "privacy") }
+    public static func join(token: String) -> URL? { base?.appending(path: "join").appending(path: token) }
+    public static func challenge(_ id: String) -> URL? { base?.appending(path: "challenge").appending(path: id) }
 }

@@ -40,7 +40,7 @@ final class NotchModel {
     @discardableResult
     func speak(_ next: Moment, hold: Duration? = .seconds(4), respectQuiet: Bool = true) -> Bool {
         let now = Date()
-        if respectQuiet && (quiet.isQuiet(at: now, calendar: .current) || isBusy(now)) { return false }
+        if respectQuiet && (isBusy(now) || quiet.isQuiet(at: now, calendar: .current)) { return false }
         task?.cancel()
         task = Task { [weak self] in await self?.run(next, hold: hold) }
         return true

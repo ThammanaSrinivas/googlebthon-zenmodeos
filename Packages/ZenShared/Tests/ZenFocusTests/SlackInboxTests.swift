@@ -44,8 +44,8 @@ struct SlackInboxTests {
             """#,
             "conversations.list": #"{"ok":true,"channels":[{"id":"D1","user":"UPRIYA"},{"id":"D2","user":"UX"}]}"#,
             "history:D1": #"{"ok":true,"messages":[{"ts":"1795151000.000200","user":"UPRIYA","text":"Lunch at 1? &amp; bring the deck <https://deck.example|deck>"},{"ts":"1795151100.000200","user":"UPRIYA","subtype":"channel_join","text":"joined"}]}"#,
-            "user:URAVI": #"{"ok":true,"user":{"name":"ravi","profile":{"display_name":"Ravi","real_name":"Ravi K"}}}"#,
-            "user:UPRIYA": #"{"ok":true,"user":{"name":"priya","profile":{"display_name":"","real_name":"Priya S"}}}"#,
+            "user:URAVI": #"{"ok":true,"user":{"name":"ravi","profile":{"real_name":"Ravi"}}}"#,
+            "user:UPRIYA": #"{"ok":true,"user":{"name":"priya","profile":{"real_name":""},"real_name":"Priya S"}}"#,
         ])
     }
 

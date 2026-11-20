@@ -91,10 +91,10 @@ public struct SlackInbox: Sendable {
         let info = try await call(SlackAPI.userInfo(token: token, user: user))
         let u = info["user"] as? [String: Any]
         let profile = u?["profile"] as? [String: Any]
-        for key in ["display_name", "real_name"] {
-            if let name = profile?[key] as? String, !name.isEmpty { return name }
+        for name in [profile?["real_name"], u?["real_name"], u?["name"]].compactMap({ $0 as? String }) where !name.isEmpty {
+            return name
         }
-        return u?["name"] as? String ?? "Someone"
+        return "Someone"
     }
 
     private func call(_ request: URLRequest) async throws -> [String: Any] {

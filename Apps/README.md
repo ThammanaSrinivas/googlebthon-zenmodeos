@@ -53,7 +53,7 @@ Permissions and entitlements:
 
 ## The Mac's focus on the iPhone (Live Activity)
 
-When the Mac starts focus it writes `users/{uid}/live/focus`; the iPhone only reads it
+When the Mac starts focus it writes the person's live focus state; the iPhone only reads it
 (`PhoneServices.focus`), shows "Focusing until 12:00 on your Mac" in the app, and puts the same on
 the Lock Screen and in the Dynamic Island. The pieces:
 
