@@ -906,7 +906,8 @@ private struct HandoffColumn: View {
         }
         .padding(ZenSpace.s4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(radius: ZenRadius.xl, tint: Color.zen.brandSoft.opacity(0.12))
+        .background(RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous).fill(Color.zen.surfaceTint.opacity(0.85)))
+        .overlay(RoundedRectangle(cornerRadius: ZenRadius.xl, style: .continuous).strokeBorder(Color.zen.brandFill.opacity(0.45), lineWidth: 1))
     }
 
     private var createPanel: some View {

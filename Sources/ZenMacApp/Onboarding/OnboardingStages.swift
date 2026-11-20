@@ -45,20 +45,36 @@ private struct ZenoStage: View {
         let feeling = storyFeelings[feelingIndex % storyFeelings.count]
         let line = Copy.feelingLines[feelingIndex % storyFeelings.count]
         VStack(spacing: ZenSpace.s5) {
+            // The top of this Mac's screen, lit, with the notch opened wide around Zeno.
             ZStack(alignment: .top) {
-                UnevenRoundedRectangle(bottomLeadingRadius: 56, bottomTrailingRadius: 56, style: .continuous)
-                    .fill(Color.zen.island)
-                    .overlay {
-                        RadialGradient(colors: [feeling.skin.glow.opacity(0.4), .clear], center: UnitPoint(x: 0.5, y: 1.05), startRadius: 0, endRadius: 220)
-                            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 56, bottomTrailingRadius: 56, style: .continuous))
-                            .animation(ZenMotion.calm(ZenMotion.t3), value: feeling)
-                    }
-                ZenoView(feeling)
-                    .frame(width: 210)
-                    .padding(.top, 34)
+                ScreenGlow(tilt: 0)
+                RadialGradient(colors: [feeling.skin.glow.opacity(0.35), .clear], center: UnitPoint(x: 0.5, y: 0.6), startRadius: 0, endRadius: 260)
+                    .animation(ZenMotion.calm(ZenMotion.t3), value: feeling)
+                ZStack(alignment: .top) {
+                    UnevenRoundedRectangle(bottomLeadingRadius: 48, bottomTrailingRadius: 48, style: .continuous)
+                        .fill(Color.zen.island)
+                        .overlay {
+                            RadialGradient(colors: [feeling.skin.glow.opacity(0.4), .clear], center: UnitPoint(x: 0.5, y: 1.05), startRadius: 0, endRadius: 200)
+                                .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 48, bottomTrailingRadius: 48, style: .continuous))
+                                .animation(ZenMotion.calm(ZenMotion.t3), value: feeling)
+                        }
+                        .shadow(color: feeling.skin.glow.opacity(0.35), radius: 20, y: 8)
+                    ZenoView(feeling)
+                        .frame(width: 176)
+                        .padding(.top, 26)
+                }
+                .frame(width: 370, height: 206)
             }
-            .frame(width: 440, height: 240)
-            .shadow(color: .black.opacity(0.28), radius: 30, y: 18)
+            .frame(width: 540, height: 250)
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16, style: .continuous))
+            .padding([.top, .horizontal], 9)
+            .background(UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24, style: .continuous).fill(Color(hex: 0x050605)))
+            .overlay(UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5))
+            .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .clear, location: 1)],
+                                 startPoint: .top, endPoint: .bottom))
+            .shadow(color: .black.opacity(0.22), radius: 30, y: 14)
+            .accessibilityHidden(true)
 
             VStack(spacing: ZenSpace.s2) {
                 Text(line.kicker.uppercased())
