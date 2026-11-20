@@ -560,3 +560,59 @@ struct VoiceModelTranscriptTests {
         await rig.model.stop()
     }
 }
+
+// MARK: - Waiting for Zeno, and the hearing cue
+
+extension VoiceModelStateTests {
+    /// `seconds` of Zeno's 24 kHz audio, as the server sends it.
+    private func zenoAudio(_ seconds: Double) -> LiveServerContent {
+        LiveServerContent(modelTurn: LiveContent(parts: [
+            LivePart(inlineData: LiveBlob(mimeType: "audio/pcm;rate=24000", bytes: Data(count: Int(24_000 * seconds) * 2))),
+        ]))
+    }
+
+    @Test("Waiting for Zeno: its reply holds the mic until it has played, so its own echo never reaches the server")
+    func waitsForZeno() async throws {
+        let rig = ModelRig()
+        rig.model.waitsForZeno = true
+        await rig.listening()
+
+        await rig.push(zenoAudio(0.3))
+        await until("Zeno audible") { rig.model.zenoAudible }
+        await eventually("the mic waits") { await rig.server.streamEnds == 1 }
+        rig.audio.speak(MicChunk(samples: [9_000, -9_000])) // Zeno's own voice through the speakers
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(await rig.server.audioChunks.isEmpty)
+        #expect(rig.model.micLevel == 0)
+
+        await until("the reply has played") { !rig.model.zenoAudible } // 0.3 s of audio, then the echo tail
+        rig.audio.speak(MicChunk(samples: [9_000, -9_000]))
+        await eventually("heard again") { await rig.server.audioChunks.count == 1 }
+        #expect(rig.model.micLevel > 0)
+    }
+
+    @Test("Without waiting for Zeno nothing is held back: barge-in stays the server's")
+    func fullDuplex() async {
+        let rig = ModelRig()
+        await rig.listening()
+        await rig.push(zenoAudio(0.3))
+        await until("Zeno audible") { rig.model.zenoAudible }
+        rig.audio.speak(MicChunk(samples: [9_000, -9_000]))
+        await eventually("sent while Zeno talks") { await rig.server.audioChunks.count == 1 }
+        #expect(await rig.server.streamEnds == 0)
+    }
+
+    @Test("The person's own mute survives a reply ending")
+    func userMuteSurvives() async throws {
+        let rig = ModelRig()
+        rig.model.waitsForZeno = true
+        await rig.listening()
+        await rig.model.setMuted(true)
+        await rig.push(zenoAudio(0.1))
+        await until("Zeno audible") { rig.model.zenoAudible }
+        await until("the reply has played") { !rig.model.zenoAudible }
+        rig.audio.speak(MicChunk(samples: [9_000, -9_000]))
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(await rig.server.audioChunks.isEmpty)
+    }
+}

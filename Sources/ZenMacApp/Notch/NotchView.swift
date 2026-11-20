@@ -56,6 +56,7 @@ struct NotchView: View {
             .clipShape(shape)
             .shadow(color: .black.opacity(open ? 0.34 : 0), radius: 28, y: 14)
             .shadow(color: glow.opacity(model.attention && open ? 0.28 : 0), radius: 22, y: 10)
+            .zenoHearing(open ? model.hearing : nil, glow: glow)
             .opacity(open && model.pointerOver ? Self.hoverOpacity : 1)
             .animation(ZenMotion.calm(ZenMotion.t2), value: model.pointerOver)
             Spacer(minLength: 0)
@@ -204,4 +205,29 @@ struct FlowLayout: Layout {
         }
         return rows
     }
+}
+
+/// Zeno hearing you, on Zeno's whole card (the notch's black shape, the Talk to Zeno island): a
+/// drop shadow in Zeno's colour under the card that swells and deepens with your voice. A calm one
+/// at silence, so it still reads as "listening" while you pause; none while Zeno talks or thinks.
+/// Reduce Motion keeps the shadow and stops it following every syllable.
+struct ZenoHearing: ViewModifier {
+    let level: Double?
+    let glow: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        let on = level != nil
+        let l = reduceMotion ? 0.3 : min(max(level ?? 0, 0), 1)
+        return content
+            // Two layers: a close drop shadow that grounds the card, and a wider one that blooms as you talk.
+            .shadow(color: glow.opacity(on ? 0.55 : 0), radius: on ? 6 + 6 * l : 0, x: 0, y: on ? 8 : 0)
+            .shadow(color: glow.opacity(on ? 0.35 + 0.5 * l : 0), radius: on ? 18 + 26 * l : 0, x: 0, y: on ? 14 + 12 * l : 0)
+            .animation(.easeOut(duration: 0.14), value: l)
+            .animation(ZenMotion.calm(ZenMotion.t2), value: on)
+    }
+}
+
+extension View {
+    func zenoHearing(_ level: Double?, glow: Color) -> some View { modifier(ZenoHearing(level: level, glow: glow)) }
 }

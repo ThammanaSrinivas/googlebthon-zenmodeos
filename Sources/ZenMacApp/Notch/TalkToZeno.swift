@@ -189,11 +189,7 @@ extension AppModel {
             Task { await voice.stop() }
             return
         }
-        notch.speak(.init(feeling: .curious, kicker: "Zeno · listening", line: "I'm listening."), hold: nil, respectQuiet: false)
-        Task {
-            await startVoice(voice, pickup: false)
-            await mirrorVoiceInNotch(voice)
-        }
+        Task { await startVoice(voice, pickup: false) }
     }
 
     /// Every way into a chat with Zeno (⌃⌥Z, "Hey Zeno", Settings › Zeno's Try it here) starts here.
@@ -201,7 +197,10 @@ extension AppModel {
     /// takes it back a second after the chat ends.
     func startVoice(_ voice: VoiceModel, pickup: Bool) async {
         wake.stop()
+        // Zeno comes down from the notch for every chat, wherever it started.
+        notch.speak(.init(feeling: .curious, kicker: "Zeno · listening", line: "I'm listening."), hold: nil, respectQuiet: false)
         await voice.start(pickup: pickup)
+        Task { [weak self] in await self?.mirrorVoiceInNotch(voice) }
         Task { [weak self] in
             while !Task.isCancelled, Self.isLive(voice.state) {
                 try? await Task.sleep(for: .milliseconds(500))
@@ -218,6 +217,7 @@ extension AppModel {
     /// Zeno's latest words in the notch while the session runs; a calm line when it can't connect.
     private func mirrorVoiceInNotch(_ voice: VoiceModel) async {
         var shown = ""
+        defer { notch.hearing = nil }
         while !Task.isCancelled {
             switch voice.state {
             case .error:
@@ -228,12 +228,24 @@ extension AppModel {
                 notch.hush()
                 return
             default:
+                let hearing = Self.hearing(voice)
+                #if DEBUG
+                if (hearing == nil) != (notch.hearing == nil) {
+                    FileHandle.standardError.write(Data("[voice] notch hearing \(hearing == nil ? "off" : "on") state=\(voice.state) audible=\(voice.zenoAudible) error=\(String(describing: voice.error))\n".utf8))
+                }
+                #endif
+                notch.hearing = hearing
                 if let last = voice.lines.last(where: { $0.speaker == .zeno }), last.text != shown, !last.text.isEmpty {
                     shown = last.text
                     notch.speak(.init(feeling: .happy, kicker: "Zeno", line: String(last.text.suffix(90))), hold: nil, respectQuiet: false)
                 }
             }
-            try? await Task.sleep(for: .milliseconds(300))
+            try? await Task.sleep(for: .milliseconds(80))
         }
+    }
+
+    /// Zeno is hearing you: how loud you are (0…1), or nil while Zeno talks, thinks or can't hear.
+    static func hearing(_ voice: VoiceModel) -> Double? {
+        voice.state == .listening && !voice.zenoAudible && voice.error != .disabled ? voice.micLevel : nil
     }
 }

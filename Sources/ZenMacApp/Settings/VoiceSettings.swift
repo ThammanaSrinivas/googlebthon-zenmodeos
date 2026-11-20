@@ -368,7 +368,8 @@ struct TalkToZenoPanel: View {
             }
         }
         .padding(ZenSpace.s4)
-        .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color.zen.island))
+        .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color.zen.island)
+            .zenoHearing(AppModel.hearing(voice), glow: Color.zen.brandSoft))
         .environment(\.colorScheme, .dark)
         .animation(ZenMotion.container, value: voice.lines.count)
         .accessibilityElement(children: .contain)
@@ -434,7 +435,8 @@ struct TalkToZenoPanel: View {
 
     /// Never "Listening" to a mic that didn't open: the chat is up for typing only.
     private func label(_ voice: VoiceModel) -> String {
-        voice.error == .disabled && voice.state == .listening ? "Typing" : stateLabel(voice.state)
+        if voice.error == .disabled && voice.state == .listening { return "Typing" }
+        return stateLabel(voice.zenoAudible ? .speaking : voice.state)
     }
 
     private func stateLabel(_ s: VoiceState) -> String {

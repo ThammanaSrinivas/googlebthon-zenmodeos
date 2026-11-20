@@ -45,6 +45,14 @@ public final class VoiceModel {
     public private(set) var activeFocus: FocusSession?
     /// The intent whose minutes just ran out, until it ends or another starts.
     public private(set) var timeUp: IntentSession?
+    /// Zeno's reply is playing out loud: from its first sound until the last of it has played.
+    public private(set) var zenoAudible = false
+    /// How loud the mic is right now, 0…1 and smoothed, for the "Zeno hears you" cue. 0 while Zeno talks.
+    public private(set) var micLevel: Double = 0
+    /// The mic waits while Zeno talks: nothing is sent from Zeno's first sound until its reply has
+    /// played (and a short echo tail), so Zeno can't hear itself on the speakers and cut its own
+    /// reply off, and you're heard once it has finished. The Mac turns this on.
+    public var waitsForZeno = false
 
     /// True for the offline replay: label every surface "Demo".
     public let isDemo: Bool
@@ -80,6 +88,16 @@ public final class VoiceModel {
     /// buffered, so each session's tasks check it and drop a stopped session's leftover events and
     /// cues instead of writing them over the next session (or over `.ended`).
     private var run = 0
+    /// The person's own mute (`setMuted`), which a reply ending never undoes.
+    private var userMuted = false
+    /// When the audio queued so far will have played.
+    private var playbackEnds = Date.distantPast
+    private var audibleTask: Task<Void, Never>?
+    #if DEBUG
+    private var levelLog: [Float] = []
+    #endif
+    /// After Zeno's last sound, the room's echo dies down before the mic listens again.
+    static let echoTail: Duration = .milliseconds(500)
 
     /// A live model. `transport` makes the WebSocket for each session; by default it is
     /// `URLSessionLiveTransport` on Apple platforms (and none elsewhere, where `start` fails with
@@ -140,6 +158,7 @@ public final class VoiceModel {
         caption = nil
         demoMoment = nil
         demoClock = nil
+        resetHearing()
         state = .connecting
         watchLedger()
 
@@ -202,6 +221,7 @@ public final class VoiceModel {
         audio?.stop()
         for task in sessionTasks { task.cancel() }
         sessionTasks = []
+        resetHearing()
         state = .ended
         await session.close()
     }
@@ -215,12 +235,18 @@ public final class VoiceModel {
     }
 
     /// Mutes or unmutes the mic.
-    public func setMuted(_ muted: Bool) async { await session?.setMuted(muted) }
+    public func setMuted(_ muted: Bool) async {
+        userMuted = muted
+        await session?.setMuted(muted)
+    }
 
     private func startMic(_ audio: any VoiceAudioIO, session: ZenoSession) {
         let (chunks, continuation) = AsyncStream.makeStream(of: MicChunk.self, bufferingPolicy: .bufferingNewest(50))
-        sessionTasks.append(Task {
-            for await chunk in chunks { await session.sendAudio(chunk) }
+        sessionTasks.append(Task { [weak self] in
+            for await chunk in chunks {
+                await session.sendAudio(chunk)
+                self?.heard(chunk.rms)
+            }
         })
         do {
             try audio.start { continuation.yield($0) }
@@ -247,14 +273,71 @@ public final class VoiceModel {
         for task in sessionTasks { task.cancel() }
         sessionTasks = []
         audio?.stop()
+        resetHearing()
         session = nil
     }
 
     private func sessionFinished(_ finished: ZenoSession) {
         guard session === finished else { return }
+        resetHearing()
         audio?.stop()
         session = nil
         if state != .error { state = .ended }
+    }
+
+    // MARK: - Hearing
+
+    /// Zeno's audio just queued `seconds` more (or what was queued was dropped): Zeno is audible
+    /// until all of it has played, and with `waitsForZeno` the mic waits that long.
+    private func zenoQueued(seconds: Double, dropped: Bool = false) {
+        let now = Date()
+        playbackEnds = dropped ? now : max(playbackEnds, now).addingTimeInterval(seconds)
+        if !dropped, !zenoAudible {
+            zenoAudible = true
+            micLevel = 0
+            if waitsForZeno, let session {
+                Self.debugLog("mic waits for Zeno")
+                Task { await session.setMuted(true) }
+            }
+        }
+        guard zenoAudible else { return }
+        audibleTask?.cancel()
+        let current = run
+        audibleTask = Task { [weak self] in
+            // Until the queued duration has passed and the speakers have actually finished (playback
+            // starts a little after audio arrives, so the clock alone ends early).
+            while !Task.isCancelled, let self, self.playbackEnds > Date() || (self.audio?.isPlaying ?? false) {
+                try? await Task.sleep(for: .milliseconds(40))
+            }
+            try? await Task.sleep(for: Self.echoTail)
+            guard let self, !Task.isCancelled, self.run == current, self.playbackEnds <= Date() else { return }
+            self.zenoAudible = false
+            if self.waitsForZeno, !self.userMuted, let session = self.session {
+                Self.debugLog("mic listens again")
+                await session.setMuted(false)
+            }
+        }
+    }
+
+    /// A mic chunk's loudness: up at once, down gently. Nothing while Zeno talks (that's Zeno's echo).
+    private func heard(_ rms: Float) {
+        #if DEBUG
+        levelLog.append(rms)
+        if levelLog.count >= 25 {
+            Self.debugLog(String(format: "mic rms 1s: min %.4f max %.4f%@", levelLog.min() ?? 0, levelLog.max() ?? 0, zenoAudible ? " (Zeno talking)" : ""))
+            levelLog = []
+        }
+        #endif
+        let target = zenoAudible ? 0 : min(1, Double(rms) * 9)
+        micLevel = target > micLevel ? target : micLevel * 0.8 + target * 0.2
+    }
+
+    private func resetHearing() {
+        audibleTask?.cancel()
+        audibleTask = nil
+        playbackEnds = .distantPast
+        zenoAudible = false
+        micLevel = 0
     }
 
     // MARK: - Events
@@ -269,8 +352,10 @@ public final class VoiceModel {
             upsert(.zeno, text: text, language: nil, isFinal: isFinal)
         case .audio(let pcm, let rate):
             audio?.play(pcm, sampleRate: rate)
+            zenoQueued(seconds: PCM.durationMs(bytes: pcm.count, rate: Double(rate)) / 1_000)
         case .interrupted:
             audio?.flush()
+            zenoQueued(seconds: 0, dropped: true)
             if let index = lines.lastIndex(where: { $0.speaker == .zeno && !$0.isFinal }) {
                 lines[index].isFinal = true
                 lines[index].wasCut = true

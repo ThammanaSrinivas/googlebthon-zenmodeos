@@ -33,6 +33,8 @@ final class NotchModel {
     private(set) var attention = false
     /// The sound and the tap (set by the app; nil in tests, so they're silent).
     var cues: NotchCues?
+    /// In a chat, Zeno is hearing you: your loudness (0…1). Nil when Zeno isn't listening.
+    var hearing: Double?
     /// The pointer is over the open shape: it fades so the screen under it shows, and clicks go
     /// through to it (the panel never takes a click).
     var pointerOver = false

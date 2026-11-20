@@ -287,3 +287,25 @@ struct ZenoSessionTests {
         #expect(await rig.server.texts.isEmpty)
     }
 }
+
+extension ZenoSessionTests {
+    @Test("A muted mic isn't speech: its chunks never end a turn (Zeno's own echo while the mic waits)")
+    func mutedChunksAreNotSpeech() async throws {
+        let rig = Rig()
+        try await rig.connect()
+        #expect(await rig.session.state == .listening)
+        await rig.session.setMuted(true)
+        await rig.session.sendAudio(MicChunk(samples: [9_000, -9_000])) // loud: Zeno through the speakers
+        rig.clock.advance(by: 1)
+        await rig.session.sendAudio(MicChunk(samples: [0, 0]))           // then quiet
+        #expect(await rig.session.state == .listening)
+        #expect(await rig.server.audioChunks.isEmpty)
+
+        await rig.session.setMuted(false)
+        await rig.session.sendAudio(MicChunk(samples: [9_000, -9_000])) // the person speaks
+        rig.clock.advance(by: 1)
+        await rig.session.sendAudio(MicChunk(samples: [0, 0]))
+        #expect(await rig.session.state == .thinking)
+    }
+}
+

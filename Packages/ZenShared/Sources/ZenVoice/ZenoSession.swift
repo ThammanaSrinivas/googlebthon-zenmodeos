@@ -268,8 +268,11 @@ public actor ZenoSession {
 
     /// 40 ms of 16 kHz PCM16 from the mic. Dropped while not connected or muted.
     public func sendAudio(_ chunk: MicChunk) async {
+        // A muted mic isn't speech: muted by the person, or waiting while Zeno talks, when what it
+        // picks up is Zeno's own voice. Tracking it would end a turn nobody spoke ("Thinking" for good).
+        guard !muted else { return }
         trackLocalSpeech(rms: chunk.rms)
-        guard ready, !muted else { return }
+        guard ready else { return }
         await send(.audio(chunk.pcm))
     }
 

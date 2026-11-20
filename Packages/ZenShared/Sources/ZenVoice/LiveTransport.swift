@@ -21,6 +21,13 @@ public protocol VoiceAudioIO: AnyObject, Sendable {
     /// Drops everything queued: the user barged in.
     func flush()
     func stop()
+    /// Zeno's audio is still coming out of the speakers (queued buffers not yet played).
+    var isPlaying: Bool { get }
+}
+
+extension VoiceAudioIO {
+    /// Audio that can't tell when playback ends (test fakes): Zeno's queued duration decides alone.
+    public var isPlaying: Bool { false }
 }
 
 /// A first-in, first-out queue of frames with one waiting reader, for transports built on callbacks

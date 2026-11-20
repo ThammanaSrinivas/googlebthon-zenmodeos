@@ -529,6 +529,9 @@ final class AppModel {
             ? VoiceModel.demo(scores: services.scores, cards: services.cards, userName: name)
             : VoiceModel(tokens: services.voiceTokens, scores: services.scores, cards: services.cards,
                          ledger: voiceLedger, userName: name, audio: AVAudioVoiceIO())
+        // Zeno finishes before the mic listens again: on a Mac's speakers Zeno would otherwise hear
+        // itself and cut its own reply off (macOS can refuse echo cancellation).
+        voice?.waitsForZeno = true
     }
 
     // MARK: Navigation

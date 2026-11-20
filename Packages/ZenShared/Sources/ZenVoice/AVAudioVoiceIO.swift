@@ -22,6 +22,10 @@ public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
     private var playbackFormat: AVAudioFormat
     /// False when this session's mic opened without echo cancellation.
     public private(set) var echoCancelling = false
+    /// Buffers scheduled and not yet played out of the speakers.
+    private let pending = PendingBuffers()
+
+    public var isPlaying: Bool { pending.count > 0 }
 
     public init() {
         playbackFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: PCM.outputRate, channels: 1,
@@ -114,7 +118,8 @@ public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
         samples.withUnsafeBufferPointer { source in
             channel.update(from: source.baseAddress!, count: samples.count)
         }
-        player.scheduleBuffer(buffer, completionHandler: nil)
+        pending.add()
+        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [pending] _ in pending.done() }
         if !player.isPlaying { player.play() }
     }
 
@@ -124,6 +129,7 @@ public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
         defer { lock.unlock() }
         guard running else { return }
         player.stop()
+        pending.reset()
         player.play()
     }
 
@@ -134,6 +140,7 @@ public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
         running = false
         engine.inputNode.removeTap(onBus: 0)
         player.stop()
+        pending.reset()
         engine.stop()
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -143,6 +150,16 @@ public final class AVAudioVoiceIO: VoiceAudioIO, @unchecked Sendable {
 
 public enum VoiceIOError: Error, Equatable, Sendable {
     case noMicrophone
+}
+
+/// Buffers on their way out of the speakers; completions arrive on an audio thread.
+private final class PendingBuffers: @unchecked Sendable {
+    private let lock = NSLock()
+    private var n = 0
+    var count: Int { lock.withLock { n } }
+    func add() { lock.withLock { n += 1 } }
+    func done() { lock.withLock { n = max(0, n - 1) } }
+    func reset() { lock.withLock { n = 0 } }
 }
 
 /// The tap runs on an audio thread; the pipeline's state is guarded here.
