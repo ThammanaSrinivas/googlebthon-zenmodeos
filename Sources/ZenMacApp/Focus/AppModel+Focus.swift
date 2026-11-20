@@ -8,7 +8,11 @@ import MacUsage
 extension AppModel {
     /// Wires Focus Mode to the backend and Zeno, and ends a block a crash left behind.
     func startFocusMode() {
-        let svc = services
+        #if DEBUG
+        let sync: (any FocusSyncService)? = services.focus.map { LoggingFocusSync(inner: $0) }
+        #else
+        let sync = services.focus
+        #endif
         focus.onStarted = { [weak self] block in
             #if DEBUG
             focusLog("[focus] start until=\(FocusClock.text(block.until)) " + (self?.focus.chips ?? []).map { "\($0.id)=\($0.state.rawValue)" + ($0.note.map { "(\($0))" } ?? "") }.joined(separator: " "))
@@ -23,10 +27,10 @@ extension AppModel {
             #endif
             self?.focusEnded(ended)
         }
-        focus.configure(sync: { svc.focus })
+        focus.configure(sync: { sync })
         afterHours.onWorkEnded = { [weak self] in self?.workDayEnded() }
         followVoiceFocus()
-        afterHours.start(focus: focus, sync: { svc.focus })
+        afterHours.start(focus: focus, sync: { sync })
         #if DEBUG
         // Functional tests: ZEN_FOCUS_MINUTES=1 starts a block at launch; ZEN_FOCUS_END_AFTER=20 ends
         // it early after that many seconds.
@@ -124,5 +128,39 @@ extension AppModel {
 /// Functional tests read these lines on stderr (unbuffered).
 func focusLog(_ line: String) {
     FileHandle.standardError.write(Data((line + "\n").utf8))
+}
+#endif
+
+#if DEBUG
+/// Debug builds: every focus write and how it went, on stderr, for the functional tests.
+struct LoggingFocusSync: FocusSyncService {
+    let inner: any FocusSyncService
+
+    private func log<T>(_ what: String, _ body: () async throws(FocusSyncError) -> T) async throws(FocusSyncError) -> T {
+        do {
+            let v = try await body()
+            focusLog("[sync] \(what) ok")
+            return v
+        } catch {
+            focusLog("[sync] \(what) \(error)")
+            throw error
+        }
+    }
+
+    func setLive(_ live: LiveFocus) async throws(FocusSyncError) {
+        try await log("live active=\(live.active)") { () async throws(FocusSyncError) in try await inner.setLive(live) }
+    }
+    func save(_ record: FocusRecord) async throws(FocusSyncError) {
+        try await log("session kept=\(record.kept)") { () async throws(FocusSyncError) in try await inner.save(record) }
+    }
+    func saveDaily(_ daily: DailyFocus, day: String) async throws(FocusSyncError) {
+        try await log("daily \(day) focus=\(daily.focusMin) kept=\(daily.blocksKept)/\(daily.blocksStarted) after=\(daily.afterHoursMin) score=\(daily.zenScoreTenths.map(String.init) ?? "-")") { () async throws(FocusSyncError) in
+            try await inner.saveDaily(daily, day: day)
+        }
+    }
+    func saveWorkHours(_ hours: WorkHours) async throws(FocusSyncError) {
+        try await log("work_hours") { () async throws(FocusSyncError) in try await inner.saveWorkHours(hours) }
+    }
+    func liveFocus() -> AsyncStream<LiveFocus> { inner.liveFocus() }
 }
 #endif

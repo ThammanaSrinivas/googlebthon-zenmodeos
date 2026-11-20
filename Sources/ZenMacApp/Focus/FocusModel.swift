@@ -194,6 +194,12 @@ final class FocusModel {
         return n
     }
 
+    /// Sends the blocks kept while signed out.
+    func flushOutbox() async {
+        let e = engine
+        await e.flushOutbox()
+    }
+
     /// Today's Zen Score on the daily record, written only when it changes.
     func recordZenScore(_ tenths: Int) async {
         let e = engine

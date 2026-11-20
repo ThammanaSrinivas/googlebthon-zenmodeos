@@ -386,6 +386,8 @@ final class AppModel {
         usage = monitor
         daySync = sync
         recordMacScore(monitor: monitor, promiseHours: { builder.promiseHours })
+        // Focus blocks kept while signed out go up now.
+        Task { await focus.flushOutbox() }
         foreground = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.daySync?.flush() }
         }
