@@ -2,66 +2,130 @@ import SwiftUI
 import Albeit
 import ZenAPI
 
-/// Today: one look at the day, never the same number twice. A greeting and the one primary action
-/// (Share today); the hero (the Zen Score, the weekly streak, Zeno's line); device analytics; Zen
-/// Circle beside Zen Gold; then the pattern cards to play with. Search lives in ⌘K.
+/// Today: one look at the day, in five compartments read top to bottom: Now (Focus, and the
+/// catch-up after it), Your day (the hero and the screens, side by side), Work (plan, wrap up, the
+/// team), Rewards & circle, and Play (Zen Cards and the pattern deck). A new person sees "Get set
+/// up" first. The greeting carries the one primary action (Share today); search lives in ⌘K.
 struct DashboardView: View {
     @Environment(AppModel.self) private var model
 
-    enum Anchor: Hashable { case hero, screens, circle, gold, deck }
+    enum Anchor: Hashable { case setup, now, hero, screens, work, circle, gold, cards, deck }
 
     /// The readable column: wide enough for the analytics, narrow enough to keep the eye still.
     static let column: CGFloat = 1180
+    /// Below this content width, side-by-side pairs stack.
+    static let pairBelow: CGFloat = 940
 
     var body: some View {
-        let dash = model.dashboard
+        @Bindable var dash = model.dashboard
         GeometryReader { geo in
-            let wide = geo.size.width >= 940
+            let wide = geo.size.width >= Self.pairBelow
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: ZenSpace.s8) {
-                        topBar
-                        FocusCard()
-                        CatchUpCardView()
-                        DayPlanCard()
-                        HeroCard(day: dash.day).id(Anchor.hero)
-                        ScreensSection().id(Anchor.screens)
-                        Group {
-                            if wide {
-                                HStack(alignment: .top, spacing: ZenSpace.s6) {
-                                    CircleGlanceCard().id(Anchor.circle)
-                                    GoldGlanceCard { model.navigate = .gold }.id(Anchor.gold)
-                                        .frame(width: min(420, geo.size.width * 0.36))
-                                }
-                                .frame(height: 300)
-                            } else {
-                                VStack(spacing: ZenSpace.s6) {
-                                    CircleGlanceCard().frame(height: 300).id(Anchor.circle)
-                                    GoldGlanceCard { model.navigate = .gold }.frame(height: 300).id(Anchor.gold)
-                                }
+                    VStack(alignment: .leading, spacing: ZenSpace.s12) {
+                        VStack(alignment: .leading, spacing: ZenSpace.s6) {
+                            topBar
+                            SetupChecklistCard {
+                                withAnimation(ZenMotion.container) { proxy.scrollTo(Anchor.work, anchor: .top) }
+                            }
+                            .id(Anchor.setup)
+                        }
+
+                        compartment(.now) {
+                            FocusCard()
+                            CatchUpCardView()
+                        }
+                        .id(Anchor.now)
+
+                        compartment(.day, accessory: { DayPicker(days: dash.days, selection: $dash.dayIndex) }) {
+                            HeroCard(day: dash.day).id(Anchor.hero)
+                            ScreensSection(wide: wide).id(Anchor.screens)
+                        }
+
+                        compartment(.work) {
+                            pair(wide, equal: true) {
+                                DayPlanCard()
+                            } trailing: {
+                                TeamCard()
                             }
                         }
-                        TeamCard()
-                        PatternDeckCard().frame(height: 440).id(Anchor.deck)
+                        .id(Anchor.work)
+
+                        compartment(.rewards) {
+                            pair(wide, height: 300, trailingWidth: min(420, geo.size.width * 0.36)) {
+                                CircleGlanceCard().id(Anchor.circle)
+                            } trailing: {
+                                GoldGlanceCard { model.navigate = .gold }.id(Anchor.gold)
+                            }
+                        }
+
+                        compartment(.play) {
+                            pair(wide, height: 440, leadingWidth: min(400, geo.size.width * 0.36)) {
+                                ZenCardStackCard().id(Anchor.cards)
+                            } trailing: {
+                                PatternDeckCard().id(Anchor.deck)
+                            }
+                        }
                     }
                     .padding(.horizontal, ZenSpace.s6)
                     .padding(.top, ZenSpace.s5)
                     .padding(.bottom, ZenSpace.s16)
                     .frame(maxWidth: Self.column)
                     .frame(maxWidth: .infinity)
+                    // The quiet bloom in the top-right corner of the page.
+                    .background(alignment: .topTrailing) {
+                        TodayOrnament()
+                            .frame(width: 560, height: 560)
+                            .offset(x: 150, y: -250)
+                    }
                 }
                 .scrollIndicators(.hidden)
                 .scrollClipDisabled()
                 #if DEBUG
                 // Debug renders: ZEN_DASH_ANCHOR=screens scrolls to that part of Today.
                 .task {
-                    let anchors: [String: Anchor] = ["hero": .hero, "screens": .screens, "circle": .circle, "gold": .gold, "deck": .deck, "month": .circle]
+                    let anchors: [String: Anchor] = ["setup": .setup, "now": .now, "hero": .hero, "screens": .screens, "work": .work,
+                                                     "circle": .circle, "gold": .gold, "cards": .cards, "deck": .deck, "month": .circle]
                     if let raw = ProcessInfo.processInfo.environment["ZEN_DASH_ANCHOR"], let a = anchors[raw] {
-                        try? await Task.sleep(for: .milliseconds(400))
+                        try? await Task.sleep(for: .milliseconds(1500))
                         proxy.scrollTo(a, anchor: .center)
                     }
                 }
                 #endif
+            }
+        }
+    }
+
+    /// A numbered compartment: its header, then its cards.
+    private func compartment<Content: View>(_ section: TodaySection, @ViewBuilder content: () -> Content) -> some View {
+        compartment(section, accessory: { EmptyView() }, content: content)
+    }
+
+    private func compartment<Accessory: View, Content: View>(_ section: TodaySection, @ViewBuilder accessory: @escaping () -> Accessory,
+                                                            @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: ZenSpace.s5) {
+            TodaySectionHeader(section, accessory: accessory)
+            VStack(alignment: .leading, spacing: ZenSpace.s6) { content() }
+        }
+    }
+
+    /// Two cards side by side when there's room, one above the other when there isn't. `equal`
+    /// stretches both to the taller one's height.
+    @ViewBuilder
+    private func pair<Leading: View, Trailing: View>(_ wide: Bool, equal: Bool = false, height: CGFloat? = nil,
+                                                     leadingWidth: CGFloat? = nil, trailingWidth: CGFloat? = nil,
+                                                     @ViewBuilder leading: () -> Leading, @ViewBuilder trailing: () -> Trailing) -> some View {
+        if wide {
+            HStack(alignment: .top, spacing: ZenSpace.s6) {
+                leading().frame(width: leadingWidth).frame(maxHeight: .infinity, alignment: .top)
+                trailing().frame(width: trailingWidth).frame(maxHeight: .infinity, alignment: .top)
+            }
+            .frame(height: height)
+            .fixedSize(horizontal: false, vertical: equal)
+        } else {
+            VStack(spacing: ZenSpace.s6) {
+                leading().frame(height: height)
+                trailing().frame(height: height)
             }
         }
     }

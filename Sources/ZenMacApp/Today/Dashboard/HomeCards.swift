@@ -16,6 +16,10 @@ enum HomeCopy {
     static let zenoEyebrow = "Zeno"
     static let askAgain = "Ask Zeno"
     static let screensTitle = "Across your screens"
+    static let screensLine = "This Mac's minutes. Your iPhone sends its Zen Score only."
+    static let goldLine = "Won weeks open Zen Gold"
+    static let goldDetail = "4 good days win the week. A good day is a Zen Score above 6.0."
+    static let openGold = "See Zen Gold"
     static let circleTitle = "Zen Circle"
     static let openCircle = "Open Zen Circle"
     static let search = "Search or jump to…"
@@ -73,22 +77,43 @@ struct HeroCard: View {
 
     var body: some View {
         let week = (model.snapshot ?? FakeSnapshot.value).week
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: ZenSpace.s8) {
-                score
-                divider
-                streak(week)
-                divider
-                zeno.frame(maxWidth: 280)
+        VStack(alignment: .leading, spacing: ZenSpace.s5) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: ZenSpace.s8) {
+                    score
+                    divider
+                    streak(week)
+                    divider
+                    zeno.frame(maxWidth: 280)
+                }
+                VStack(alignment: .leading, spacing: ZenSpace.s6) {
+                    HStack(alignment: .top, spacing: ZenSpace.s8) { score; streak(week) }
+                    zeno
+                }
             }
-            VStack(alignment: .leading, spacing: ZenSpace.s6) {
-                HStack(alignment: .top, spacing: ZenSpace.s8) { score; streak(week) }
-                zeno
-            }
+            Rectangle().fill(Color.zen.borderHairline).frame(height: 1).accessibilityHidden(true)
+            goldFooter(week)
         }
         .padding(ZenSpace.s6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard(radius: ZenRadius.xxl)
+    }
+
+    /// The card's icon, bottom left: the Zen Gold coin, and what a won week opens.
+    private func goldFooter(_ week: WeekProgress) -> some View {
+        HStack(spacing: ZenSpace.s3) {
+            GoldCoin()
+                .frame(width: 44, height: 44)
+                .shadow(color: Color(hex: 0x8A5A00, alpha: 0.28), radius: 6, y: 3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(HomeCopy.goldLine).font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
+                Text(HomeCopy.goldDetail).zenType(.caption).foregroundStyle(Color.zen.textCaption)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: ZenSpace.s3)
+            Button(HomeCopy.openGold) { model.navigate = .gold }
+                .buttonStyle(ZenLinkButtonStyle())
+        }
     }
 
     private var divider: some View {
@@ -170,39 +195,38 @@ struct HeroCard: View {
 
 // MARK: - Across your screens
 
-/// Device analytics, one view at a time: the day as a clock or where the minutes went, for the day
-/// picked. One card instead of two that both say "2h 49m on this Mac".
+/// Device analytics, side by side: the day as a clock on the left, where the minutes went on the
+/// right (stacked when the window is narrow). The day picker in "Your day"'s header drives both.
 struct ScreensSection: View {
     @Environment(AppModel.self) private var model
-    @State private var view: Lens = .clock
-
-    enum Lens: String, CaseIterable { case clock = "Clock", flow = "Flow" }
+    let wide: Bool
 
     var body: some View {
         @Bindable var dash = model.dashboard
-        VStack(alignment: .leading, spacing: ZenSpace.s4) {
-            HStack(alignment: .center, spacing: ZenSpace.s4) {
-                Text(HomeCopy.screensTitle).font(ZenFont.brand(24)).tracking(-0.5).foregroundStyle(Color.zen.textHeading)
+        VStack(alignment: .leading, spacing: ZenSpace.s3) {
+            HStack(alignment: .firstTextBaseline, spacing: ZenSpace.s3) {
+                Text(HomeCopy.screensTitle).font(ZenFont.text(15, .semibold)).foregroundStyle(Color.zen.textHeading)
                     .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: ZenSpace.s3)
-                DayPicker(days: dash.days, selection: $dash.dayIndex)
-                Picker("View", selection: $view) {
-                    ForEach(Lens.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                HStack(spacing: 5) {
+                    Image(systemName: "lock.fill").font(.system(size: 9))
+                    Text(HomeCopy.screensLine).font(ZenFont.text(12.5)).lineLimit(1)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 140)
+                .foregroundStyle(Color.zen.textCaption)
+                Spacer(minLength: 0)
             }
-            Group {
-                switch view {
-                case .clock: DayClockCard(day: dash.day)
-                case .flow: MinutesFlowCard(day: dash.day, lit: $dash.litKind)
+            if wide {
+                HStack(alignment: .top, spacing: ZenSpace.s5) {
+                    DayClockCard(day: dash.day).frame(maxWidth: 440)
+                    MinutesFlowCard(day: dash.day, lit: $dash.litKind)
+                }
+                .frame(height: 420)
+            } else {
+                VStack(spacing: ZenSpace.s5) {
+                    DayClockCard(day: dash.day).frame(height: 400)
+                    MinutesFlowCard(day: dash.day, lit: $dash.litKind).frame(height: 360)
                 }
             }
-            .frame(height: 400)
-            .transition(.opacity)
         }
-        .animation(ZenMotion.calm(ZenMotion.t2), value: view)
     }
 }
 
