@@ -6,7 +6,7 @@ import SwiftUI
 /// shared without Screen Recording permission.
 ///   ZenModeMac --step seat --shot /tmp/seat   →   /tmp/seat.png and /tmp/seat-notch.png
 /// Steps: story0 story1 story2 seat campus uses quiet count bring handoff today, and on Today:
-/// today-yesterday (the day picker), today-card (a pattern card open), today-search, notch-hover.
+/// today-yesterday (the day picker), today-card (a pattern card open), today-search, notch-hover, notch-important.
 /// Liquid Glass is composited by the window server, so it renders flatter here than on screen.
 @MainActor
 enum DebugTour {
@@ -81,6 +81,16 @@ enum DebugTour {
         case "notch-hover":
             model.finishOnboarding()
             model.notch.debugHover = true
+        case "notch-important":
+            // An important moment held open, silent (no chime in a snapshot).
+            model.finishOnboarding()
+            model.notch.cues = nil
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.5))
+                model.notch.speak(.init(feeling: .happy, kicker: "Focus Mode", line: "Block kept. Let's see what came in.",
+                                        detail: "3 messages came in while you were away.", important: true),
+                                  hold: nil, respectQuiet: false)
+            }
         default: break
         }
     }

@@ -399,7 +399,7 @@ final class AppModel {
             reviewSeen = false
         }
         if stage == .today, preferences.spend(.weeklyReview) {
-            notch.speak(.init(feeling: .pleasant, kicker: "Weekly review", line: "Your week, read. It's on Today."), hold: .seconds(3.4))
+            notch.speak(.init(feeling: .pleasant, kicker: "Weekly review", line: "Your week, read. It's on Today.", important: true), hold: .seconds(3.4))
         }
     }
 
@@ -420,7 +420,7 @@ final class AppModel {
                 headsUpGiven.insert(next.id)
                 guard preferences.spend(.calendar) else { try? await Task.sleep(for: .seconds(30)); continue }
                 let time = next.start.formatted(date: .omitted, time: .shortened)
-                notch.speak(.init(feeling: .pleasant, kicker: "Calendar · \(time)", line: "Busy at \(time). I'll keep quiet then."), hold: .seconds(4))
+                notch.speak(.init(feeling: .pleasant, kicker: "Calendar · \(time)", line: "Busy at \(time). I'll keep quiet then.", important: true), hold: .seconds(4))
             }
             try? await Task.sleep(for: .seconds(30))
         }

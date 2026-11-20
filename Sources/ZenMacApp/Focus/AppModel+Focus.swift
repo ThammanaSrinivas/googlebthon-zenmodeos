@@ -95,12 +95,12 @@ extension AppModel {
     /// A block ended: Zeno says so, then the catch-up reads what came in (on this Mac).
     func focusEnded(_ ended: FocusEnded) {
         let line = ended.record.kept ? "Block kept. Let's see what came in." : "Focus ended. Everything's back on."
-        notch.speak(.init(feeling: ended.record.kept ? .happy : .pleasant, kicker: "Focus Mode", line: line),
+        notch.speak(.init(feeling: ended.record.kept ? .happy : .pleasant, kicker: "Focus Mode", line: line, important: true),
                     hold: .seconds(3), respectQuiet: false)
         Task {
             await catchUp.focusEnded(since: ended.record.session.startAt)
             if case .waiting(let n) = catchUp.state {
-                notch.speak(.init(feeling: .curious, kicker: "What did I miss?", line: n == 1 ? "1 message came in." : "\(n) messages came in."),
+                notch.speak(.init(feeling: .curious, kicker: "What did I miss?", line: n == 1 ? "1 message came in." : "\(n) messages came in.", important: true),
                             hold: .seconds(3), respectQuiet: false)
             }
         }
@@ -119,7 +119,7 @@ extension AppModel {
 
     /// The end of work hours: Zeno nudges a wrap-up.
     func workDayEnded() {
-        notch.speak(.init(feeling: .sleepy, kicker: "Work's done", line: "Wrap up, then log off."), hold: .seconds(3.4), respectQuiet: false)
+        notch.speak(.init(feeling: .sleepy, kicker: "Work's done", line: "Wrap up, then log off.", important: true), hold: .seconds(3.4), respectQuiet: false)
         wrapUpOffered = true
     }
 }

@@ -1,41 +1,62 @@
 import SwiftUI
 import Albeit
 
-/// The black shape at the notch. At rest it is exactly the camera housing, so it can't be seen;
-/// when Zeno speaks it grows down and out (352-ish × 126, radius 28), Zeno drops in on the left
-/// and the words arrive one by one on the right.
+/// The black shape at the notch. At rest it is exactly the camera housing, so it can't be seen.
+/// When Zeno speaks it pours out: it widens and drops (432 × up to ~180, radius 32) with curved shoulders
+/// where it meets the menu bar, so it reads as one piece of black flowing out of the notch. Zeno
+/// drops in on the left and the words arrive one by one on the right. An important moment also
+/// wears a lit rim in the feeling's colour while it's up.
 struct NotchView: View {
     let model: NotchModel
     /// The physical notch; zero on a screen without one.
     let notch: CGSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static let openWidth: CGFloat = 376
+    static let openWidth: CGFloat = 432
+    /// The curve where the open shape meets the menu bar.
+    static let shoulder: CGFloat = 12
     /// How faint the shape gets while the pointer is over it.
     static let hoverOpacity: Double = 0.14
+    /// Zeno's column, and where the words start.
+    static let zenoWidth: CGFloat = 124
+    static let textX: CGFloat = 160
 
-    /// The open shape's size under a notch of `notch`.
+    /// The open shape's size under a notch of `notch` (its body, without the shoulders).
     static func openSize(notch: CGSize, hasDetail: Bool) -> CGSize {
-        CGSize(width: openWidth, height: notch.height + (hasDetail ? 108 : 92))
+        CGSize(width: openWidth, height: notch.height + (hasDetail ? 140 : 104))
     }
 
     var body: some View {
         let top = notch.height
+        let open = model.isOpen
         let openHeight = Self.openSize(notch: notch, hasDetail: model.moment.detail != nil).height
-        let width = model.isOpen ? Self.openWidth : notch.width
-        let height = model.isOpen ? openHeight : notch.height
-        let radius: CGFloat = model.isOpen ? 28 : 10
-        let shape = UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius, style: .continuous)
+        let shoulder = open && notch.height > 0 ? Self.shoulder : 0
+        let width = (open ? Self.openWidth : notch.width) + shoulder * 2
+        let height = open ? openHeight : notch.height
+        let shape = NotchShape(radius: open ? 32 : 10, shoulder: shoulder)
+        let glow = model.moment.feeling.skin.glow
 
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
                 shape.fill(Color.zen.island)
                 content(top: top)
                     .frame(width: Self.openWidth, height: openHeight, alignment: .topLeading)
+                    // The words and Zeno surface out of the black rather than sliding in on a card.
+                    .scaleEffect(open || reduceMotion ? 1 : 0.94, anchor: .top)
+                    .blur(radius: open || reduceMotion ? 0 : 6)
+                    .opacity(open ? 1 : 0)
+                // The lit rim of an important moment: brightest along the bottom edge, nothing at the top.
+                shape
+                    .stroke(LinearGradient(colors: [glow.opacity(0), glow.opacity(0.55)], startPoint: .top, endPoint: .bottom),
+                            lineWidth: 1.5)
+                    .opacity(model.attention && open ? 1 : 0)
+                    .animation(ZenMotion.calm(ZenMotion.t3), value: model.attention)
             }
             .frame(width: width, height: height, alignment: .top)
             .clipShape(shape)
-            .shadow(color: .black.opacity(model.isOpen ? 0.32 : 0), radius: 26, y: 14)
-            .opacity(model.isOpen && model.pointerOver ? Self.hoverOpacity : 1)
+            .shadow(color: .black.opacity(open ? 0.34 : 0), radius: 28, y: 14)
+            .shadow(color: glow.opacity(model.attention && open ? 0.28 : 0), radius: 22, y: 10)
+            .opacity(open && model.pointerOver ? Self.hoverOpacity : 1)
             .animation(ZenMotion.calm(ZenMotion.t2), value: model.pointerOver)
             Spacer(minLength: 0)
         }
@@ -50,36 +71,66 @@ struct NotchView: View {
         let skin = m.feeling.skin
         return ZStack(alignment: .topLeading) {
             // A glow in the feeling's colour, low on Zeno's side.
-            RadialGradient(colors: [skin.glow.opacity(0.32), .clear], center: UnitPoint(x: 0.2, y: 1), startRadius: 0, endRadius: 200)
+            RadialGradient(colors: [skin.glow.opacity(m.important ? 0.4 : 0.32), .clear], center: UnitPoint(x: 0.18, y: 1),
+                           startRadius: 0, endRadius: 230)
                 .opacity(model.zenoIn ? 1 : 0)
                 .animation(ZenMotion.calm(ZenMotion.t3), value: model.zenoIn)
 
             ZenoView(m.feeling, replay: model.replay)
-                .frame(width: 108)
-                .position(x: 70, y: top + 42)
-                .offset(y: model.zenoIn ? 0 : -(top + 96))
+                .frame(width: Self.zenoWidth)
+                .position(x: 80, y: top + 50)
+                .offset(y: model.zenoIn ? 0 : -(top + 110))
                 .opacity(model.zenoIn ? 1 : 0)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(m.kicker.uppercased())
-                    .font(ZenFont.number(10)).tracking(1)
+                    .font(ZenFont.number(11)).tracking(1)
                     .foregroundStyle(skin.glow)
                     .opacity(model.wordsIn ? 1 : 0)
                     .offset(y: model.wordsIn ? 0 : 6)
                     .animation(ZenMotion.words, value: model.wordsIn)
-                WordsArriving(line: m.line, shown: model.wordsIn, stagger: m.feeling == .sad || m.feeling == .sleepy ? 0.075 : 0.045)
+                WordsArriving(line: m.line, shown: model.wordsIn, stagger: m.feeling == .sad || m.feeling == .sleepy ? 0.075 : 0.045,
+                              font: ZenFont.text(17, .semibold))
                 if let detail = m.detail {
                     Text(detail)
-                        .font(ZenFont.text(12.5))
+                        .font(ZenFont.text(13.5))
                         .foregroundStyle(Color.zen.islandDetail)
                         .opacity(model.wordsIn ? 1 : 0)
                         .offset(y: model.wordsIn ? 0 : 8)
                         .animation(ZenMotion.words.delay(0.25), value: model.wordsIn)
                 }
             }
-            .frame(width: Self.openWidth - 142 - 22, alignment: .leading)
-            .offset(x: 142, y: top + 12)
+            .frame(width: Self.openWidth - Self.textX - 26, alignment: .leading)
+            .offset(x: Self.textX, y: top + 14)
         }
+    }
+}
+
+/// The notch's outline: square at the top, rounded at the bottom, and (open) curved shoulders that
+/// flare into the menu bar, the way liquid leaves a spout. Both radii animate.
+struct NotchShape: Shape {
+    var radius: CGFloat
+    var shoulder: CGFloat
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(radius, shoulder) }
+        set { radius = newValue.first; shoulder = newValue.second }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let s = max(0, min(shoulder, rect.width / 4, rect.height / 2))
+        let r = max(0, min(radius, (rect.width - s * 2) / 2, rect.height - s))
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        p.addQuadCurve(to: CGPoint(x: rect.minX + s, y: rect.minY + s), control: CGPoint(x: rect.minX + s, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.minX + s, y: rect.maxY - r))
+        p.addQuadCurve(to: CGPoint(x: rect.minX + s + r, y: rect.maxY), control: CGPoint(x: rect.minX + s, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.maxX - s - r, y: rect.maxY))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX - s, y: rect.maxY - r), control: CGPoint(x: rect.maxX - s, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.maxX - s, y: rect.minY + s))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY), control: CGPoint(x: rect.maxX - s, y: rect.minY))
+        p.closeSubpath()
+        return p
     }
 }
 

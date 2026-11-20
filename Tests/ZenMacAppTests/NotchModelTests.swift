@@ -101,3 +101,63 @@ struct NotchModelTests {
         #expect(ZenoNudge(feeling: .sad, line: "Fake").notchFeeling == .pleasant)
     }
 }
+
+@Suite("Notch: important moments, their sound and their tap")
+@MainActor
+struct NotchImportantTests {
+    private let plain = NotchModel.Moment(feeling: .pleasant, kicker: "Fake", line: "Fake line.")
+    private var important: NotchModel.Moment { var m = plain; m.important = true; return m }
+
+    @Test("An important moment stays about 20 seconds; a plain one keeps its own hold; open stays open")
+    func holds() {
+        #expect(NotchModel.hold(for: important, requested: .seconds(3)) == .seconds(20))
+        #expect(NotchModel.hold(for: important, requested: .seconds(30)) == .seconds(30))
+        #expect(NotchModel.hold(for: plain, requested: .seconds(3)) == .seconds(3))
+        #expect(NotchModel.hold(for: important, requested: nil) == nil)
+    }
+
+    @Test("An important moment lights the rim while it's up, and it goes out on close")
+    func attention() async {
+        let n = NotchModel()
+        n.reduceMotion = true
+        n.speak(important, hold: nil, respectQuiet: false)
+        #expect(await eventually { n.wordsIn })
+        #expect(n.attention)
+        n.hush()
+        #expect(await eventually { !n.isOpen })
+        #expect(!n.attention)
+        n.speak(plain, hold: nil, respectQuiet: false)
+        #expect(await eventually { n.wordsIn })
+        #expect(!n.attention)
+    }
+
+    @Test("The sounds ease in from silence and ring out to silence, quietly")
+    func sounds() {
+        for samples in [NotchCues.chime(notes: [(783.99, 0), (1174.66, 0.11)], length: 1.3, decay: 0.42),
+                        NotchCues.chime(notes: [(1046.5, 0), (698.46, 0.09)], length: 0.95, decay: 0.3, level: 0.7)] {
+            #expect(!samples.isEmpty)
+            #expect(abs(samples.first!) < 0.001 && abs(samples.last!) < 0.001)
+            let peak = samples.map(abs).max()!
+            #expect(peak <= 0.5 + 1e-6 && peak > 0.2)
+            // Eased in: the first 5 ms stay well under the peak.
+            #expect(samples.prefix(Int(0.005 * NotchCues.sampleRate)).map(abs).max()! < peak * 0.2)
+        }
+    }
+
+    @Test("They're real WAV files AVAudioPlayer can open")
+    func wav() {
+        let data = NotchCues.arrival
+        #expect(String(decoding: data.prefix(4), as: UTF8.self) == "RIFF")
+        #expect(String(decoding: data[8..<12], as: UTF8.self) == "WAVE")
+        #expect(data.count == 44 + Int(1.3 * NotchCues.sampleRate) * 2)
+    }
+
+    @Test("Turned off, Zeno's sounds stay silent")
+    func off() {
+        let cues = NotchCues()
+        let defaults = UserDefaults(suiteName: "zen.test.cues.\(UUID().uuidString)")!
+        cues.defaults = defaults
+        defaults.set(false, forKey: NotchCues.soundsKey)
+        #expect(!cues.soundsOn)
+    }
+}

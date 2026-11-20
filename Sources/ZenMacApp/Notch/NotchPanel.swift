@@ -10,10 +10,11 @@ final class NotchPanelController {
     /// The notch the shape was drawn for (the view keeps the one it launched with).
     private let notch: CGSize
     private var hoverTimer: Timer?
-    static let size = CGSize(width: 560, height: 220)
+    static let size = CGSize(width: 640, height: 260)
 
     init(model: NotchModel) {
         self.model = model
+        if model.cues == nil { model.cues = NotchCues() }
         panel = NotchPanel(contentRect: CGRect(origin: .zero, size: Self.size))
         let screen = Self.notchedScreen()
         let notch = Self.notchSize(on: screen)
