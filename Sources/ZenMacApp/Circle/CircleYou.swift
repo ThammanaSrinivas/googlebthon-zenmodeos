@@ -156,6 +156,7 @@ private struct WayThumb: View {
     let selected: Bool
     let pick: () -> Void
     @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: pick) {
@@ -164,9 +165,9 @@ private struct WayThumb: View {
                     .aspectRatio(1, contentMode: .fit)
                     .overlay {
                         RoundedRectangle(cornerRadius: ZenRadius.widget, style: .continuous)
-                            .strokeBorder(selected ? Color.zen.brandSoft : .clear, lineWidth: 2.5)
+                            .strokeBorder(selected ? Color.zen.brandSoft : (hovering ? Color.zen.borderOutline : .clear), lineWidth: selected ? 2.5 : 1.5)
                     }
-                    .scaleEffect(hovering && !selected ? 1.02 : 1)
+                    .scaleEffect(hovering && !selected && !reduceMotion ? 1.02 : 1)
                 HStack(spacing: 6) {
                     Text(kind.rawValue).font(ZenFont.text(14, .semibold)).foregroundStyle(Color.zen.textHeading)
                     if selected {
