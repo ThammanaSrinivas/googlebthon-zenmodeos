@@ -26,7 +26,7 @@
   <a href="https://github.com/ThammanaSrinivas/googlebthon-zenmodeos/releases/latest"><img alt="The latest Mac release" src="https://img.shields.io/github/v/release/ThammanaSrinivas/googlebthon-zenmodeos?style=flat-square&labelColor=12160F&color=2AA136&label=Mac%20app"></a>
 </p>
 
-<a href="https://drive.google.com/file/d/1e7lTiYeDbgYKrKYod8J4ZHeevIeM3lVl/view"><img src="docs/readme/demo-cover.jpg" alt="Watch the 3-minute demo of ZenMode OS for Teams: the Mac app, Zeno and the team view (opens on Google Drive)"></a>
+<a href="https://drive.google.com/file/d/1e7lTiYeDbgYKrKYod8J4ZHeevIeM3lVl/view"><img src="docs/readme/demo-cover.jpg" alt="Watch the 3-minute demo of ZenMode OS for Teams (opens on Google Drive)"></a>
 
 <p align="center">
   <img src="docs/readme/zeno-notch.gif" width="640" alt="Zeno in the Mac notch: Focusing until 12:00, I'll keep watch. Later: Work's done, wrap up, then log off.">
@@ -66,12 +66,12 @@ groups of 5 or more, plus a monthly report written by Gemini, and never a name n
   <tr>
     <td width="50%" valign="top">
       <h3>▶&nbsp; Watch the demo</h3>
-      <p>Three minutes: Focus Mode, Zeno in the notch, the catch-up, and what a team admin sees.</p>
+      <p>The three-minute trailer of ZenMode OS for Teams.</p>
       <p><a href="https://drive.google.com/file/d/1e7lTiYeDbgYKrKYod8J4ZHeevIeM3lVl/view"><b>Play it on Google Drive →</b></a></p>
     </td>
     <td width="50%" valign="top">
       <h3>⬇&nbsp; Try it on your Mac</h3>
-      <p><b>v0.1.0</b>, notarized by Apple. macOS 26 or later, Apple silicon or Intel.</p>
+      <p><b>v0.1.0</b>. The app is notarized by Apple. macOS 26 or later, Apple silicon or Intel.</p>
       <p><a href="https://github.com/ThammanaSrinivas/googlebthon-zenmodeos/releases/download/v0.1.0/ZenMode-OS.dmg"><b>ZenMode-OS.dmg</b></a> (19.6 MB) · <a href="https://github.com/ThammanaSrinivas/googlebthon-zenmodeos/releases/latest">release notes</a></p>
     </td>
   </tr>
