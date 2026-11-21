@@ -11,18 +11,22 @@
 </p>
 
 <p align="center">
+  <a href="https://drive.google.com/file/d/1e7lTiYeDbgYKrKYod8J4ZHeevIeM3lVl/view"><img alt="Watch the demo, 3 minutes" src="https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-3%20min-2AA136?style=for-the-badge&labelColor=12160F"></a>
+  &nbsp;
+  <a href="https://github.com/ThammanaSrinivas/googlebthon-zenmodeos/releases/latest"><img alt="Download for Mac, v0.1.0" src="https://img.shields.io/badge/Download%20for%20Mac-v0.1.0%20.dmg-F3F2EC?style=for-the-badge&labelColor=12160F&logo=apple&logoColor=white"></a>
+</p>
+
+<p align="center">
   <img alt="Startup Buildathon India 2026" src="https://img.shields.io/badge/Startup_Buildathon_India-2026-2AA136?style=flat-square&labelColor=12160F">
   <img alt="Gemini Live API and Gemini Flash" src="https://img.shields.io/badge/Gemini-Live_API_%2B_Flash-8E75FF?style=flat-square&labelColor=12160F">
   <img alt="macOS 26 and iOS 26" src="https://img.shields.io/badge/macOS_26_%C2%B7_iOS_26-SwiftUI-F3F2EC?style=flat-square&labelColor=12160F">
   <img alt="Swift 6.2" src="https://img.shields.io/badge/Swift-6.2-F05138?style=flat-square&labelColor=12160F">
   <img alt="825 tests at the freeze" src="https://img.shields.io/badge/tests-825_at_the_freeze-2AA136?style=flat-square&labelColor=12160F">
   <img alt="GPLv3" src="https://img.shields.io/badge/licence-GPLv3-FFC800?style=flat-square&labelColor=12160F">
+  <a href="https://github.com/ThammanaSrinivas/googlebthon-zenmodeos/releases/latest"><img alt="The latest Mac release" src="https://img.shields.io/github/v/release/ThammanaSrinivas/googlebthon-zenmodeos?style=flat-square&labelColor=12160F&color=2AA136&label=Mac%20app"></a>
 </p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/site-hero-dark.jpg">
-  <img src="docs/readme/site-hero.jpg" alt="The ZenMode OS for Teams landing page: Turn busy teams into focused teams, with a Focus mode switch in a cloud of notification badges">
-</picture>
+<a href="https://drive.google.com/file/d/1e7lTiYeDbgYKrKYod8J4ZHeevIeM3lVl/view"><img src="docs/readme/demo-cover.jpg" alt="Watch the 3-minute demo of ZenMode OS for Teams: the Mac app, Zeno and the team view (opens on Google Drive)"></a>
 
 <p align="center">
   <img src="docs/readme/zeno-notch.gif" width="640" alt="Zeno in the Mac notch: Focusing until 12:00, I'll keep watch. Later: Work's done, wrap up, then log off.">
@@ -36,11 +40,12 @@ ends, Zeno catches you up on what you missed, and when the workday ends it guard
 Zeno is a small character who lives in the Mac notch and the iPhone Dynamic Island. It says one
 calm line when it matters, and talks with you through Gemini Live when you ask.
 
-Built for **Startup Buildathon India 2026** (Google × Hack2skill). Companies and campuses pay per
-seat, and every seat is a person with the full app. The admin sees anonymous team numbers for
+Built for **Startup Buildathon India 2026** (Google × Hack2skill). The employer pays per seat, and
+every seat is a person with the full app. The admin sees anonymous team numbers for
 groups of 5 or more, plus a monthly report written by Gemini, and never a name next to a number.
 
 <p align="center">
+  <a href="#get-it">Get it</a> ·
   <a href="#a-day-with-zenmode-os">A day with it</a> ·
   <a href="#the-site">The site</a> ·
   <a href="#whats-in-it">What's in it</a> ·
@@ -54,6 +59,28 @@ groups of 5 or more, plus a monthly report written by Gemini, and never a name n
   <a href="#zeno-voice">Zeno Voice</a> ·
   <a href="#tests">Tests</a>
 </p>
+
+## Get it
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>▶&nbsp; Watch the demo</h3>
+      <p>Three minutes: Focus Mode, Zeno in the notch, the catch-up, and what a team admin sees.</p>
+      <p><a href="https://drive.google.com/file/d/1e7lTiYeDbgYKrKYod8J4ZHeevIeM3lVl/view"><b>Play it on Google Drive →</b></a></p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>⬇&nbsp; Try it on your Mac</h3>
+      <p><b>v0.1.0</b>, notarized by Apple. macOS 26 or later, Apple silicon or Intel.</p>
+      <p><a href="https://github.com/ThammanaSrinivas/googlebthon-zenmodeos/releases/download/v0.1.0/ZenMode-OS.dmg"><b>ZenMode-OS.dmg</b></a> (19.6 MB) · <a href="https://github.com/ThammanaSrinivas/googlebthon-zenmodeos/releases/latest">release notes</a></p>
+    </td>
+  </tr>
+</table>
+
+> [!TIP]
+> Open the .dmg, drag **ZenMode OS** into Applications and open it. macOS asks once because it came
+> from the internet: click **Open**. Sign in with **Google**; Sign in with Apple works only in App
+> Store builds, so it does nothing in this one.
 
 ## A day with ZenMode OS
 
@@ -119,6 +146,11 @@ screen.
 
 The landing page for the pitch, live on Firebase Hosting.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/site-hero-dark.jpg">
+  <img src="docs/readme/site-hero.jpg" alt="The ZenMode OS for Teams landing page: Turn busy teams into focused teams, with a Focus mode switch in a cloud of app icons">
+</picture>
+
 <table>
   <tr>
     <td width="50%"><img src="docs/readme/site-problem.jpg" alt="The problem: interrupted every 2 minutes, 59% burnout symptoms, $14B a year"></td>
@@ -169,8 +201,8 @@ The landing page for the pitch, live on Firebase Hosting.
 | What | Model | How |
 |---|---|---|
 | Talk to Zeno (Zeno Voice) | **Gemini Live API**, native audio in and out | The app gets a single-use, locked token from the backend, so the API key never reaches a device. Zeno's 7 tools turn what you said into actions on the device. |
-| Catch-up, Plan my day, Wrap up, Ask Zeno | **Gemini Flash on Vertex AI**, called by the backend | A response schema, then a validator: lengths, no app names, no unkind or medical words, no links, no invented commitments in drafts, and Ask Zeno's quote must really be in the notes. Any failure or timeout returns a fixed fallback. |
-| The monthly people report | **Gemini**, on the backend | Written from the team's anonymous numbers, only for groups of 5 or more. |
+| Catch-up, Plan my day, Wrap up, Ask Zeno | **Gemini 3.8 Flash on Vertex AI**, called by the backend | A response schema, then a validator: lengths, no app names, no unkind or medical words, no links, no invented commitments in drafts, and Ask Zeno's quote must really be in the notes. Any failure or timeout returns a fixed fallback. |
+| The monthly people report | **Gemini 4 Neon**, with 3.8 Flash as backup, on the backend | Written from the team's anonymous numbers, only for groups of 5 or more. |
 
 The app labels a line "Zeno · Gemini" only when Gemini wrote it, and plain "Zeno" when it's the
 fallback. Zeno's everyday nudges in the notch are written by rules, not by Gemini. The "Hey Zeno"
